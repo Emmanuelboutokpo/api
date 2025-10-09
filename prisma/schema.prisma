@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id        Int        @id @default(autoincrement())
+  name      String
+  email     String     @unique
+  clerkId   String     @unique
+  role      UserRole   @default(EMPLOYEE)
+  createdAt DateTime   @default(now())
+  commandes Commande[]
+}
+
+model Client {
+  id            Int            @id @default(autoincrement())
+  firstName     String
+  lastName      String
+  telephone     String         @unique
+  adresse       String?
+  imageUrl      String?
+  gender        Gender
+  createdAt     DateTime       @default(now())
+  commandes     Commande[]
+  mesures       Mesure[]
+  styles        Style[]
+
+  @@unique([firstName, lastName])
+}
+
+model Style {
+  id        Int        @id @default(autoincrement())
+  model     String     @unique
+  
+  client    Client     @relation(fields: [clientId], references: [id])
+  clientId  Int
+  commandes Commande[]
+}
+
+model Mesure {
+  id               Int               @id @default(autoincrement())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  client           Client            @relation(fields: [clientId], references: [id])
+  clientId         Int
+  commandes        Commande[]
+  tableauDeMesures TableauDeMesure[]
+}
+
+model TableauDeMesure {
+  id               Int          @id @default(autoincrement())
+  label            String
+  valeur           String
+
+  mesureId         Int
+  mesure           Mesure @relation(fields: [mesureId], references: [id])
+}
+
+model Commande {
+  id                  Int            @id @default(autoincrement())
+  description         String?
+  dateCommande        DateTime       @default(now())
+  dateLivraisonPrevue DateTime
+  status              CommandeStatus @default(EN_COURS)
+  prix                Float?
+  imgCmd              String?
+  audioFile           String?
+  
+  client              Client         @relation(fields: [clientId], references: [id])
+  clientId            Int
+  mesure              Mesure         @relation(fields: [mesureId], references: [id])
+  mesureId            Int
+  style               Style          @relation(fields: [styleId], references: [id])
+  styleId             Int
+  createdBy           User           @relation(fields: [userId], references: [id])
+  userId              Int
+  notifications       Notification[]
+}
+
+model Notification {
+  id               Int         @id @default(autoincrement())
+  commandeId       Int
+  message          String
+  dateNotification DateTime    @default(now())
+  status           NotifStatus @default(EN_ATTENTE)
+
+  commande         Commande    @relation(fields: [commandeId], references: [id])
+}
+
+enum UserRole {
+  ADMIN
+  EMPLOYEE
+}
+
+enum Gender {
+  M
+  F
+}
+
+enum CommandeStatus {
+  EN_COURS
+  PRET
+  LIVRE
+  ANNULE
+}
+
+enum NotifStatus {
+  EN_ATTENTE
+  ENVOYEE
+  LUE
+}

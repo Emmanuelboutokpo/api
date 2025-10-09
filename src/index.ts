@@ -28,6 +28,11 @@ app.use('/api', tableauRoutes);
 // app.use("/api", commandeRoutes);
 
 // Start the server and listen on the specified port
+
+app.get("/api/health", (req, res) => {
+  res.send({ status: "ok" });
+});
+
 const PORT = process.env.PORT || 8888
 app.listen(PORT, () => {
   console.log(`🚀 Server ready at: http://localhost:${PORT}`)

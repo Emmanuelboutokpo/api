@@ -18,7 +18,7 @@ router.use(clerkMiddleware());
 
 router.get('/grouped-by-style', getClientsGroupedByStyle);
 router.get('/by-style/:model', getClientsByStyle);
-router.get('/clients', requireAuth(), getAllClients);
+router.get('/clients', getAllClients);
 router.get('/client/:id', getClientById);
 router.post('/clients', globalClientValidators,isRequestValidated, upload.single('imageUrl'), createClient);
 router.put('/client/:id', globalClientValidators,isRequestValidated, upload.single('imageUrl'), updateClient);

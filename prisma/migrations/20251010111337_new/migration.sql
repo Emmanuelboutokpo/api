@@ -46,6 +46,16 @@ CREATE TABLE "Style" (
 );
 
 -- CreateTable
+CREATE TABLE "MesureType" (
+    "id" SERIAL NOT NULL,
+    "label" TEXT NOT NULL,
+    "valeur" DOUBLE PRECISION NOT NULL,
+    "unit" TEXT,
+
+    CONSTRAINT "MesureType_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Mesure" (
     "id" SERIAL NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -56,13 +66,12 @@ CREATE TABLE "Mesure" (
 );
 
 -- CreateTable
-CREATE TABLE "TableauDeMesure" (
+CREATE TABLE "MesureValeur" (
     "id" SERIAL NOT NULL,
-    "label" TEXT NOT NULL,
-    "valeur" TEXT NOT NULL,
+    "mesureTypeId" INTEGER NOT NULL,
     "mesureId" INTEGER NOT NULL,
 
-    CONSTRAINT "TableauDeMesure_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "MesureValeur_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -109,6 +118,9 @@ CREATE UNIQUE INDEX "Client_firstName_lastName_key" ON "Client"("firstName", "la
 -- CreateIndex
 CREATE UNIQUE INDEX "Style_model_key" ON "Style"("model");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "MesureType_label_key" ON "MesureType"("label");
+
 -- AddForeignKey
 ALTER TABLE "Style" ADD CONSTRAINT "Style_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -116,7 +128,10 @@ ALTER TABLE "Style" ADD CONSTRAINT "Style_clientId_fkey" FOREIGN KEY ("clientId"
 ALTER TABLE "Mesure" ADD CONSTRAINT "Mesure_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "TableauDeMesure" ADD CONSTRAINT "TableauDeMesure_mesureId_fkey" FOREIGN KEY ("mesureId") REFERENCES "Mesure"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "MesureValeur" ADD CONSTRAINT "MesureValeur_mesureTypeId_fkey" FOREIGN KEY ("mesureTypeId") REFERENCES "MesureType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MesureValeur" ADD CONSTRAINT "MesureValeur_mesureId_fkey" FOREIGN KEY ("mesureId") REFERENCES "Mesure"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Commande" ADD CONSTRAINT "Commande_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

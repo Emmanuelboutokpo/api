@@ -1,16 +1,14 @@
 import { Router } from 'express';
-import { requireAdmin } from '../middlewares/requireAdmin';
-import { clerkMiddleware, requireAuth } from '@clerk/express';
-import { getMe, getUsers, updateUser } from '../controllers/users.controller';
 
-import type { Router as ExpressRouter } from 'express';
-const router: ExpressRouter = Router();
+// import { getMe, getUsers, updateUser } from '../controllers/users.controller';
 
-router.use(clerkMiddleware());
+// import type { Router as ExpressRouter } from 'express';
+// const router: ExpressRouter = Router();
 
-// Routes
-  router.get('/me',requireAuth(), getMe );
-  router.get('/users',requireAuth(), requireAdmin, getUsers);
-  router.patch('/users/:userId', requireAuth(), updateUser);  
 
-export default router;
+// // Routes
+//   router.get('/me', getMe );
+//   router.get('/users', getUsers);
+//   router.patch('/users/:userId', updateUser);  
+
+// export default router;

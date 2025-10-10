@@ -49,6 +49,14 @@ model Style {
   commandes Commande[]
 }
 
+model MesureType {
+  id       Int      @id @default(autoincrement())
+  label     String   @unique    // Exemple : "Tour de poitrine", "Longueur manche"
+  valeur      Float
+  unit     String?              // Exemple : "cm"
+  mesures  MesureValeur[]       // Toutes les valeurs associées à ce type
+}
+
 model Mesure {
   id               Int               @id @default(autoincrement())
   createdAt        DateTime          @default(now())
@@ -57,17 +65,17 @@ model Mesure {
   client           Client            @relation(fields: [clientId], references: [id])
   clientId         Int
   commandes        Commande[]
-  tableauDeMesures TableauDeMesure[]
+  valeurs          MesureValeur[]    // toutes les valeurs de cette prise de mesure
 }
 
-model TableauDeMesure {
-  id               Int          @id @default(autoincrement())
-  label            String
-  valeur           String
-
-  mesureId         Int
-  mesure           Mesure @relation(fields: [mesureId], references: [id])
+model MesureValeur {
+  id          Int          @id @default(autoincrement())
+  mesureType  MesureType   @relation(fields: [mesureTypeId], references: [id])
+  mesureTypeId Int
+  mesure      Mesure       @relation(fields: [mesureId], references: [id])
+  mesureId     Int
 }
+
 
 model Commande {
   id                  Int            @id @default(autoincrement())

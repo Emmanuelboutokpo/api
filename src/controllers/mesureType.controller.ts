@@ -1,16 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
 
-export const addMesureToTableau = async (req: Request, res: Response, next: NextFunction) => {
+export const addMesureType = async (req: Request, res: Response, next: NextFunction) => {
   try {
 
-    const {mesureId, label, valeur } = req.body;
+    const {label, valeur } = req.body;
 
-    const newMesure = await prisma.tableauDeMesure.create({
+    const newMesure = await prisma.mesureType.create({
       data: {
         label,
-        valeur,
-        mesureId: Number(mesureId),
+        valeur
       },
     });
 
@@ -20,9 +19,9 @@ export const addMesureToTableau = async (req: Request, res: Response, next: Next
   }
 };
 
-export const getMesureTableau = async (req: Request, res: Response, next: NextFunction) => {
+export const getMesureType = async (req: Request, res: Response, next: NextFunction) => {
   try {   
-    const mesures = await prisma.tableauDeMesure.findMany(); 
+    const mesures = await prisma.mesureType.findMany(); 
     res.json({ success: true, data: mesures });
   }
     catch (error) {
@@ -30,10 +29,10 @@ export const getMesureTableau = async (req: Request, res: Response, next: NextFu
     }
 };
 
-export const getMesureTableauById = async (req: Request, res: Response, next: NextFunction) => {
+export const getMesureTypeById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;      
-    const mesure = await prisma.tableauDeMesure.findUnique({
+    const mesure = await prisma.mesureType.findUnique({
       where: { id: Number(id) },
     }); 
     res.json({ success: true, data: mesure });
@@ -43,12 +42,12 @@ export const getMesureTableauById = async (req: Request, res: Response, next: Ne
     }
 };
 
-export const updateMesureTableau = async (req: Request, res: Response, next: NextFunction) => {
+export const updateMesureType = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const { label, valeur } = req.body;
 
-    const updated = await prisma.tableauDeMesure.update({
+    const updated = await prisma.mesureType.update({
       where: { id: Number(id) },
       data: { label, valeur },
     });
@@ -59,11 +58,11 @@ export const updateMesureTableau = async (req: Request, res: Response, next: Nex
   }
 };
 
-export const deleteMesureTableau = async (req: Request, res: Response, next: NextFunction) => {
+export const deleteMesureType = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
 
-    await prisma.tableauDeMesure.delete({
+    await prisma.mesure.delete({
       where: { id: Number(id) },
     });
 

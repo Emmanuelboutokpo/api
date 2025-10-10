@@ -44,6 +44,7 @@ export const getAllClients = async (req: Request, res: Response) :Promise<any> =
 
 };
 
+// get client lorsqu'on clique sur le model
 export const getClientsByStyle = async (
   req: Request,
   res: Response,
@@ -124,12 +125,14 @@ export const getClientsByStyle = async (
    }
 };
 
+// client par ID
 export const getClientById = async (req: Request, res: Response) :Promise<any> => {
   const client = await prisma.client.findUnique({ where: { id: parseInt(req.params.id) }, include: { mesures: true, commandes : true }, });
   if (!client) return res.status(404).json({ message: 'Client non trouvée' });
   res.json(client);
 };
 
+//route de la page d'accueil
 export const getClientsGroupedByStyle = async (
   req: Request,
   res: Response,

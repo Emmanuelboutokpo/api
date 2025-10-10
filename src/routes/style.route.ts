@@ -1,6 +1,4 @@
 import express from 'express';
-
-import { requireAuth } from '@clerk/express';
 import { globalStyleValidator, isRequestValidated } from '../validator/styleValidator';
 import { createStyle, deleteStyle, getStyle, updateStyle } from '../controllers/style.controller';
 

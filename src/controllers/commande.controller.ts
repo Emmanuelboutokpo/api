@@ -1,13 +1,12 @@
 import { Request, Response } from "express";
  import { differenceInHours } from "date-fns";
 import prisma from "../lib/prisma";
-import { getAuth } from "@clerk/express";
 import { cloudinary } from "../lib/cloudinary";
 
 export const createCommande = async (req: Request, res: Response) => {
  try {
     const { clientId, mesureId, styleId, dateLivraisonPrevue, description, prix} = req.body;
-    const { userId } = getAuth(req as any);
+    const userId  = "1" // par defaut
 
     if (!userId) return res.status(401).json({ error: 'no clerk session' });
 

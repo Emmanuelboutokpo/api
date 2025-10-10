@@ -15,6 +15,7 @@
     "@types/body-parser": "latest",
     "@types/cors": "latest",
     "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.6.2",
     "nodemon": "^3.1.10",
@@ -24,7 +25,6 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@clerk/express": "^1.7.36",
     "@prisma/client": "^6.16.3",
     "@prisma/extension-accelerate": "^2.0.2",
     "body-parser": "^2.2.0",
@@ -35,6 +35,9 @@
     "express": "^5.1.0",
     "express-validator": "^7.2.1",
     "fs": "0.0.1-security",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.2.0",
+    "jwt": "^0.2.0",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "path": "^0.12.7",

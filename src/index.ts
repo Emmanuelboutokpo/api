@@ -8,8 +8,10 @@ import styleRoutes from './routes/style.route';
 import mesureRoutes from './routes/mesure.routes';
 import tableauRoutes from './routes/MesureType.routes';
 import commandeRoutes from "./routes/commande.routes";
+import { clerkMiddleware } from '@clerk/express'
 
 const app = express()
+app.use(clerkMiddleware());
 app.use(syncUser)
 app.use(cors({origin: "*", credentials: true}));
 app.use(bodyParser.json());

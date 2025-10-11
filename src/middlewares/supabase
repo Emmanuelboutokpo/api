@@ -1,0 +1,59 @@
+import { Request, Response, NextFunction } from "express";
+import jwksClient from "jwks-rsa";
+import prisma from "../lib/prisma";
+import * as jwt from "jsonwebtoken";
+
+const client = jwksClient({
+  jwksUri: `${process.env.SUPABASE_URL}/auth/v1/keys`,
+});
+
+function getKey(header: any, callback: any) {
+  client.getSigningKey(header.kid, (err, key) => {
+    const signingKey = key?.getPublicKey();
+    callback(null, signingKey);
+  });
+}
+
+export async function syncUser(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: "Missing Authorization header" });
+
+  const token = authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Missing token" });
+
+  jwt.verify(token, getKey, { algorithms: ["RS256"] }, async (err, decoded: any) => {
+    if (err) {
+      console.error("JWT verification failed:", err);
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    const supabaseId = decoded.sub;
+    if (!supabaseId) return res.status(401).json({ error: "Invalid Supabase user" });
+
+    const clerkId = supabaseId;
+   try {
+     let dbUser = await prisma.user.findUnique({ where: { clerkId } });
+      
+     if (!dbUser) {
+       await prisma.user.upsert({
+               where: { clerkId },
+               update: {
+                 name:  decoded.user_metadata?.full_name,
+                 email: decoded.email || '',
+               },
+          create: {
+           clerkId,
+           email: decoded.email ?? "",
+           name: decoded.user_metadata?.full_name ?? decoded.email ?? "",
+           role: 'EMPLOYEE'
+         },
+       });
+     }
+    
+   } catch (error) {
+     console.error('Erreur de synchronisation:', error);
+     return next(error);
+   }
+    next();
+  });
+}

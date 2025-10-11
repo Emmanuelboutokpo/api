@@ -25,6 +25,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@clerk/express": "^1.7.37",
     "@prisma/client": "^6.16.3",
     "@prisma/extension-accelerate": "^2.0.2",
     "body-parser": "^2.2.0",

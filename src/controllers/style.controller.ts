@@ -79,13 +79,13 @@ export const getStyle = async (req: Request, res: Response) => {
 export const updateStyle = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { clientId, model } = req.body;
+    const { model } = req.body;
 
     const sizeId = Number(id);
 
     const updated = await prisma.style.update({
       where: { id: sizeId },
-      data: { clientId: Number(clientId), model }
+      data: { model }
     });
 
     res.status(200).json(updated);

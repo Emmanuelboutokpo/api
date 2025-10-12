@@ -133,38 +133,35 @@ export const getClientById = async (req: Request, res: Response) :Promise<any> =
 };
 
 //route de la page d'accueil
-export const getClientsGroupedByStyle = async (
-  req: Request,
-  res: Response,
-) => {
+export const getClientsGroupedByStyle = async (req: Request, res: Response) => {
   try {
-    // On récupère tous les styles avec leurs clients associés
+    // 🔹 Récupération de tous les styles avec leurs clients associés
     const styles = await prisma.style.findMany({
       include: {
-        client: true,
+        clients: true, // ✅ N:N relation
       },
     });
 
-    // On groupe les clients par style (modèle)
-    const grouped = styles.reduce((acc: any, style: { model: string; client: any }) => {
+    // 🔹 On groupe les clients par modèle de style
+    const grouped = styles.reduce((acc: any, style: { model: string; clients: any[] }) => {
       const model = style.model;
 
       if (!acc[model]) {
         acc[model] = [];
       }
 
-      // Ajout du client (si non déjà présent)
-      const clientExists = acc[model].some(
-        (c: any) => c.id === style.client.id
-      );
-      if (!clientExists) {
-        acc[model].push(style.client);
-      }
+      // Ajout des clients du style actuel
+      style.clients.forEach((client) => {
+        const exists = acc[model].some((c: any) => c.id === client.id);
+        if (!exists) {
+          acc[model].push(client);
+        }
+      });
 
       return acc;
     }, {});
 
-    // On limite à 4 clients par style
+    // 🔹 On limite à 4 clients par style
     const limited = Object.entries(grouped).map(([model, clients]: [string, any]) => ({
       model,
       clients: clients.slice(0, 4), // max 4 clients
@@ -172,10 +169,11 @@ export const getClientsGroupedByStyle = async (
 
     res.json({ success: true, data: limited });
   } catch (error) {
-    console.error('Erreur lors de la récupération des clients groupés par style', error);
-    res.status(500).json({ message: 'Erreur serveur' });
+    console.error("Erreur lors de la récupération des clients groupés par style", error);
+    res.status(500).json({ message: "Erreur serveur" });
   }
 };
+
 
  export const createClient = async (req: Request, res: Response) => {
   try {

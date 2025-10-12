@@ -40,7 +40,6 @@ CREATE TABLE "Client" (
 CREATE TABLE "Style" (
     "id" SERIAL NOT NULL,
     "model" TEXT NOT NULL,
-    "clientId" INTEGER NOT NULL,
 
     CONSTRAINT "Style_pkey" PRIMARY KEY ("id")
 );
@@ -103,6 +102,14 @@ CREATE TABLE "Notification" (
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "_ClientStyles" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+
+    CONSTRAINT "_ClientStyles_AB_pkey" PRIMARY KEY ("A","B")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -121,8 +128,8 @@ CREATE UNIQUE INDEX "Style_model_key" ON "Style"("model");
 -- CreateIndex
 CREATE UNIQUE INDEX "MesureType_label_key" ON "MesureType"("label");
 
--- AddForeignKey
-ALTER TABLE "Style" ADD CONSTRAINT "Style_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+-- CreateIndex
+CREATE INDEX "_ClientStyles_B_index" ON "_ClientStyles"("B");
 
 -- AddForeignKey
 ALTER TABLE "Mesure" ADD CONSTRAINT "Mesure_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -147,3 +154,9 @@ ALTER TABLE "Commande" ADD CONSTRAINT "Commande_userId_fkey" FOREIGN KEY ("userI
 
 -- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_ClientStyles" ADD CONSTRAINT "_ClientStyles_A_fkey" FOREIGN KEY ("A") REFERENCES "Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_ClientStyles" ADD CONSTRAINT "_ClientStyles_B_fkey" FOREIGN KEY ("B") REFERENCES "Style"("id") ON DELETE CASCADE ON UPDATE CASCADE;

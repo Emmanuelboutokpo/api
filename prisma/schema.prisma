@@ -35,7 +35,7 @@ model Client {
   createdAt     DateTime       @default(now())
   commandes     Commande[]
   mesures       Mesure[]
-  styles        Style[]
+  styles  Style[]  @relation("ClientStyles")
 
   @@unique([firstName, lastName])
 }
@@ -44,8 +44,7 @@ model Style {
   id        Int        @id @default(autoincrement())
   model     String     @unique
   
-  client    Client     @relation(fields: [clientId], references: [id])
-  clientId  Int
+  clients Client[] @relation("ClientStyles")
   commandes Commande[]
 }
 

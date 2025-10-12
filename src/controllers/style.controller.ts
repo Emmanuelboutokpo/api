@@ -1,33 +1,70 @@
 import prisma from "../lib/prisma";
 import { Request, Response } from "express";
 
-export const createStyle = async (req: Request, res: Response) => {
-  try {
-    const { clientId, model } = req.body;
+// export const createStyle = async (req: Request, res: Response) => {
+//   try {
+//     const { clientId, model } = req.body;
 
-    console.log(clientId, model);
+//     console.log(clientId, model);
     
 
-    // Vérifie si le model existe déjà
-    const existing = await prisma.style.findFirst({
-      where: { model: model },
+//     // Vérifie si le model existe déjà
+//     const existing = await prisma.style.findFirst({
+//       where: { model: model },
+//     });
+
+//     if (existing) {
+//       return res.status(400).json({ message: "Ce model existe déjà." });
+//     }
+
+//     // Crée le model et ses dimensions associées
+//     const style = await prisma.style.create({
+//       data: { clientId: Number(clientId), model }
+//     });
+
+//     res.status(201).json(style);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Erreur serveur." });
+//   }
+// };
+
+export const createStyleForClient = async (req: Request, res: Response) => {
+  const { clientId, model } = req.body;
+
+  if (!clientId || !model) {
+    return res.status(400).json({ message: "clientId et model sont requis" });
+  }
+
+  try {
+    // ✅ On connecte ou crée le style
+    const style = await prisma.style.upsert({
+      where: { model },
+      update: {},
+      create : {model}
     });
 
-    if (existing) {
-      return res.status(400).json({ message: "Ce model existe déjà." });
-    }
-
-    // Crée le model et ses dimensions associées
-    const style = await prisma.style.create({
-      data: { clientId: Number(clientId), model }
+    // ✅ On connecte le style au client (dans la table pivot)
+    const updatedClient = await prisma.client.update({
+      where: { id: clientId },
+      data: {
+        styles: {
+          connect: { id: style.id },
+        },
+      },
+      include: { styles: true },
     });
 
-    res.status(201).json(style);
+    res.json({
+      message: "Style ajouté avec succès au client",
+      client: updatedClient,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur serveur." });
+    console.error("Erreur lors de la création du style :", error);
+    res.status(500).json({ message: "Erreur serveur", error });
   }
 };
+
 
 export const getStyle = async (req: Request, res: Response) => {
   try {

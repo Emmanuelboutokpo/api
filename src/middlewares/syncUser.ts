@@ -8,7 +8,6 @@
       next: NextFunction
     ) => {
       const { userId } = getAuth(req)
-      console.log(userId)
       if (userId) {
         try {
           const clerkUser = await clerkClient.users.getUser(userId);

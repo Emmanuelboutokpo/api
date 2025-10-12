@@ -2,9 +2,6 @@ import { NextFunction, Request, Response } from 'express';
 import { check, validationResult } from 'express-validator';
 
 export const globalStyleValidator = [
-  check('clientId')
-    .notEmpty().withMessage('clientId est obligatoire.')
-    .isInt().withMessage('clientId doit être un entier.'),
   check('model')
     .notEmpty().withMessage('Le nom du modèle est obligatoire.')
     .isString().withMessage('Le modèle doit être une chaîne de caractères.'),

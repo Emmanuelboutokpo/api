@@ -37,7 +37,7 @@ app.get("/", (req, res) => {
 })
 
 // ✅ CORRECTION : Convertir en NUMBER
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8888
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 10000
 
 // ✅ MAINTENANT ça marche : PORT est un number
 app.listen(PORT, '0.0.0.0', () => {

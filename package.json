@@ -4,8 +4,11 @@
   "description": "",
   "main": "./src/index.ts",
   "scripts": {
-    "start": "prisma generate --no-engine && nodemon src/index.ts",
-    "dev": "npx prisma generate && nodemon src/index.ts"
+    "dev": "npx prisma generate && nodemon src/index.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy"
   },
   "keywords": [],
   "author": "",

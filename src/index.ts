@@ -11,6 +11,9 @@ import commandeRoutes from "./routes/commande.routes";
 import { clerkMiddleware } from '@clerk/express'
 
 const app = express()
+
+console.log('🔧 Server starting...')
+
 app.use(clerkMiddleware());
 app.use(syncUser)
 app.use(cors({origin: "*", credentials: true}));
@@ -23,10 +26,22 @@ app.use('/api', tableauRoutes);
 app.use("/api", commandeRoutes);
 
 app.get("/api/health", (req, res) => {
-  res.send({ status: "ok" });
+  res.json({ status: "ok", timestamp: new Date().toISOString() })
 });
 
-const PORT = process.env.PORT || 8888
-app.listen(PORT, () => {
-  console.log(`🚀 Server ready at: http://localhost:${PORT}`)
+app.get("/", (req, res) => {
+  res.json({ 
+    message: "API Server is running", 
+    timestamp: new Date().toISOString()
+  })
 })
+
+// ✅ CORRECTION : Convertir en NUMBER
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8888
+
+// ✅ MAINTENANT ça marche : PORT est un number
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`)
+})
+
+export default app

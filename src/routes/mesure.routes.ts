@@ -1,8 +1,11 @@
 import { Router } from 'express';
-import { getMesuresByClient} from '../controllers/mesure.controller';
+import { createMesure, deleteMesure, getMesuresByClient, updateMesure} from '../controllers/mesure.controller';
  
 const router = Router();
 
-router.get('/client-mesure/:clientId', getMesuresByClient);
+router.post("/mesures", createMesure);
+router.get('/mesure/:clientId', getMesuresByClient);
+router.patch('/mesure/:id', updateMesure);
+ router.delete("/mesure/:id", deleteMesure);
 
 export default router;

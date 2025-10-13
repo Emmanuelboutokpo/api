@@ -50,10 +50,10 @@ model Style {
 
 model MesureType {
   id       Int      @id @default(autoincrement())
-  label     String   @unique    // Exemple : "Tour de poitrine", "Longueur manche"
-  valeur      Float
-  unit     String?              // Exemple : "cm"
-  mesures  MesureValeur[]       // Toutes les valeurs associées à ce type
+  label     String   @unique   
+
+  unit     String?              
+  mesures  MesureValeur[]     
 }
 
 model Mesure {
@@ -64,11 +64,12 @@ model Mesure {
   client           Client            @relation(fields: [clientId], references: [id])
   clientId         Int
   commandes        Commande[]
-  valeurs          MesureValeur[]    // toutes les valeurs de cette prise de mesure
+  valeurs          MesureValeur[]    
 }
 
 model MesureValeur {
   id          Int          @id @default(autoincrement())
+  valeur       Float
   mesureType  MesureType   @relation(fields: [mesureTypeId], references: [id])
   mesureTypeId Int
   mesure      Mesure       @relation(fields: [mesureId], references: [id])

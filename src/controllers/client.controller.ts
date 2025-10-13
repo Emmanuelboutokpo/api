@@ -222,7 +222,7 @@ export const getClientsGroupedByStyle = async (req: Request, res: Response) => {
     return res.status(201).json(newClient);
   } catch (error: any) {
     console.error("Erreur création client:", error);
-    return res.status(500).json({ error: "Erreur serveur" });
+    return res.status(500).json({ error: "Erreur serveur"});
   }
 };
 

@@ -9,10 +9,10 @@ import {
 
 const router = Router();
 
-router.post('/tableau-mesures', addMesureType);  
-router.get('/tableau-mesures', getMesureType);  
-router.get('/tableau-mesure/:id', getMesureTypeById);  
-router.patch('/tableau-mesure/:id', updateMesureType);  
-router.delete('/tableau-mesure/:id', deleteMesureType);  
+router.post('/label-mesures', addMesureType);  
+router.get('/label-mesures', getMesureType);  
+router.get('/label-mesure/:id', getMesureTypeById);  
+router.patch('/label-mesure/:id', updateMesureType);  
+router.delete('/label-mesure/:id', deleteMesureType);  
 
 export default router;

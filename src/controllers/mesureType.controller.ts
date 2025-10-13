@@ -4,12 +4,24 @@ import prisma from '../lib/prisma';
 export const addMesureType = async (req: Request, res: Response, next: NextFunction) => {
   try {
 
-    const {label, valeur } = req.body;
+    const {label } = req.body;
+
+     const existingMeasure = await prisma.mesureType.findFirst({
+      where: {
+        label,
+      },
+    });
+
+    if (existingMeasure) {
+      return res.status(400).json({
+        error: `${label} existe déjà.`,
+      });
+    }
+
 
     const newMesure = await prisma.mesureType.create({
       data: {
-        label,
-        valeur
+        label
       },
     });
 
@@ -45,11 +57,11 @@ export const getMesureTypeById = async (req: Request, res: Response, next: NextF
 export const updateMesureType = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const { label, valeur } = req.body;
+    const { label } = req.body;
 
     const updated = await prisma.mesureType.update({
       where: { id: Number(id) },
-      data: { label, valeur },
+      data: { label},
     });
 
     res.json({ success: true, data: updated });

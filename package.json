@@ -5,7 +5,7 @@
   "main": "./src/index.ts",
   "scripts": {
     "dev": "npx prisma generate && nodemon src/index.ts",
-    "build": "tsc",
+    "build": "pnpm prisma:generate && tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy"

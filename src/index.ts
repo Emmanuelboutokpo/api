@@ -11,7 +11,7 @@ import mesureRoutes from './routes/mesure.routes';
 import tableauRoutes from './routes/MesureType.routes';
 import commandeRoutes from "./routes/commande.routes";
 import FournitureRoutes from "./routes/fourniture.route";
-import userRoute from "./routes/users.routes"
+//import userRoute from "./routes/users.routes"
 
 import { clerkMiddleware } from '@clerk/express'
 import { Server } from "socket.io";
@@ -40,7 +40,7 @@ app.use('/api', mesureRoutes);
 app.use('/api', tableauRoutes);
 app.use("/api", commandeRoutes);
 app.use("/api", FournitureRoutes);
-app.use("/api", userRoute);
+//app.use("/api", userRoute);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() })

@@ -8,6 +8,7 @@ const router: ExpressRouter = Router();
 
 // Routes
   router.get('/me', getMe );
+  router.get('/user/me', getMe );
   router.get('/users', getUsers);
   router.patch('/users/:userId', updateUser);  
 

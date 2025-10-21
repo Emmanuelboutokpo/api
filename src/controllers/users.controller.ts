@@ -36,6 +36,30 @@ export const getMe = async (
      
 };
 
+export const getUser = async (req: Request, res: Response) => {
+  try {
+
+   const { userId } = getAuth(req)
+   const clerkId = userId;
+
+  if (!clerkId) {
+    res.status(400).json({ message: 'Invalid user ID' });
+    return;
+  }
+
+  let user = await prisma.user.findFirst({ where: { clerkId } });
+    res.json({
+      id: user?.id,
+      email: user?.email,
+      role: user?.role,
+      name: user?.name,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+};
+
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   const { skip = '0', take = '10' } = req.query;
 

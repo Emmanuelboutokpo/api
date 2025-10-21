@@ -3,13 +3,14 @@ import { Router } from 'express';
 import { getMe, getUsers, updateUser } from '../controllers/users.controller';
 
 import type { Router as ExpressRouter } from 'express';
+import { requireAuth } from '@clerk/express';
 const router: ExpressRouter = Router();
 
 
 // Routes
-  router.get('/me', getMe );
-  router.get('/user/me', getMe );
-  router.get('/users', getUsers);
-  router.patch('/users/:userId', updateUser);  
+  router.get('/me', requireAuth(), getMe );
+  router.get('/user/me', requireAuth(), getMe );
+  router.get('/users', requireAuth(), getUsers);
+  router.patch('/users/:userId', requireAuth(), updateUser);  
 
 export default router;

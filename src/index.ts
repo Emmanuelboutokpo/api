@@ -4,11 +4,15 @@ import 'dotenv/config'
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import {syncUser } from './middlewares/syncUser' 
+
 import clientRoutes from './routes/client.routes';
 import styleRoutes from './routes/style.route';
 import mesureRoutes from './routes/mesure.routes';
 import tableauRoutes from './routes/MesureType.routes';
 import commandeRoutes from "./routes/commande.routes";
+import FournitureRoutes from "./routes/fourniture.route";
+import userRoute from "./routes/users.routes"
+
 import { clerkMiddleware } from '@clerk/express'
 import { Server } from "socket.io";
 import { startCheckDeliveriesJob } from "./services/jobs/checkDeliveries.job";
@@ -29,11 +33,14 @@ app.use(syncUser)
 app.use(cors({origin: "*", credentials: true}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 app.use('/api', clientRoutes);
 app.use('/api', styleRoutes);
 app.use('/api', mesureRoutes);
 app.use('/api', tableauRoutes);
 app.use("/api", commandeRoutes);
+app.use("/api", FournitureRoutes);
+app.use("/api", userRoute);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() })

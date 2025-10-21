@@ -5,8 +5,6 @@ import { requireAuth } from '@clerk/express';
 
 const router = express.Router();
 
-router.get("/styles", getStyle);
-router.post('/styles', globalStyleValidator,isRequestValidated, createStyleForClient);
 router.patch("/style/:id",  globalStyleValidator,isRequestValidated, updateStyle);
 router.delete("/style/:id", deleteStyle);
 

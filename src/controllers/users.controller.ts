@@ -66,7 +66,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
   const { userId } = req.params;
   const { name, role, email } = req.body;
   const { userId: clerkId } = getAuth(req);
-  const targetUser = await prisma.user.findUnique({ where: { id: Number(userId) } });
+  const targetUser = await prisma.user.findUnique({ where: { id: userId } });
 
 if (!targetUser) {
   res.status(404).json({ message: 'User not found' });
@@ -94,7 +94,7 @@ if (!currentUser) {
   }
 
   const updatedUser = await prisma.user.update({
-    where: { id: Number(userId) },
+    where: { id: userId },
     data,
   });
 

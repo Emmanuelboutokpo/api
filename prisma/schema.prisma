@@ -1,8 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Prisma schema - version révisée
 
 generator client {
   provider = "prisma-client-js"
@@ -13,19 +9,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
-  id        Int        @id @default(autoincrement())
-  name      String
-  email     String     @unique
-  clerkId   String     @unique
-  role      UserRole   @default(EMPLOYEE)
-  createdAt DateTime   @default(now())
-  commandes Commande[]
+  id             String            @id @default(uuid())
+  name           String
+  email          String         @unique
+  clerkId        String         @unique
+  expoPushToken  String?
+  role           UserRole       @default(EMPLOYEE)
+  createdAt      DateTime       @default(now())
+  disponibilite  Boolean        @default(true)
+
+  commandes      Commande[]     // commandes créées par cet utilisateur
+
+  commandesAssignees Commande[] @relation("CommandeAssignedTo") // ← RELATION AJOUTÉE
+
+  controles      Controle[]     // contrôles effectués
+  commandesControlees Commande[] @relation("CommandeControleur") // commandes où il est le controleur
+
+  penalites      Penalite[]
+  remunerations  Remuneration[]
+  notifications  Notification[] @relation("NotificationDestinataire")
+  paiementsProcessee Paiement[] @relation("PaiementProcessedBy")
 }
 
+
 model Client {
-  id            Int            @id @default(autoincrement())
+  id            String            @id @default(uuid())
   firstName     String
   lastName      String
   telephone     String         @unique
@@ -33,83 +42,208 @@ model Client {
   imageUrl      String?
   gender        Gender
   createdAt     DateTime       @default(now())
-  commandes     Commande[]
-  mesures       Mesure[]
-  styles  Style[]  @relation("ClientStyles")
 
-  @@unique([firstName, lastName])
+  commandes     Commande[]
+  paiements      Paiement[]
+  mesures       Mesure[]
+  styles        Style[]        @relation("ClientStyles")
 }
 
 model Style {
-  id        Int        @id @default(autoincrement())
+  id        String        @id @default(uuid())
   model     String     @unique
   
-  clients Client[] @relation("ClientStyles")
+  clients   Client[]   @relation("ClientStyles")
   commandes Commande[]
 }
 
 model MesureType {
-  id       Int      @id @default(autoincrement())
-  label     String   @unique   
-
-  unit     String?              
-  mesures  MesureValeur[]     
+  id         String             @id @default(uuid())
+  label      String          @unique
+  unit       String?
+  mesures    MesureValeur[]
 }
 
 model Mesure {
-  id               Int               @id @default(autoincrement())
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id         String               @id @default(uuid())
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 
-  client           Client            @relation(fields: [clientId], references: [id])
-  clientId         Int
-  commandes        Commande[]
-  valeurs          MesureValeur[]    
+  client     Client            @relation(fields: [clientId], references: [id])
+  clientId   String
+
+  commande   Commande       @relation(fields: [commandeId], references: [id])
+  commandeId String
+
+  valeurs    MesureValeur[]
 }
 
 model MesureValeur {
-  id          Int          @id @default(autoincrement())
+  id           String          @id @default(uuid())
   valeur       Float
-  mesureType  MesureType   @relation(fields: [mesureTypeId], references: [id])
-  mesureTypeId Int
-  mesure      Mesure       @relation(fields: [mesureId], references: [id])
-  mesureId     Int
+  mesureType   MesureType   @relation(fields: [mesureTypeId], references: [id])
+  mesureTypeId String
+  mesure       Mesure       @relation(fields: [mesureId], references: [id])
+  mesureId     String
 }
 
-
 model Commande {
-  id                  Int            @id @default(autoincrement())
-  description         String?
+  id                  String            @id @default(uuid())
+  description         String
   dateCommande        DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
   dateLivraisonPrevue DateTime
   status              CommandeStatus @default(EN_COURS)
   prix                Float?
+  montantAvance       Float?
   imgCmd              String?
   audioFile           String?
-  
+
   client              Client         @relation(fields: [clientId], references: [id])
-  clientId            Int
-  mesure              Mesure         @relation(fields: [mesureId], references: [id])
-  mesureId            Int
+  clientId            String
+
   style               Style          @relation(fields: [styleId], references: [id])
-  styleId             Int
+  styleId             String
+
   createdBy           User           @relation(fields: [userId], references: [id])
-  userId              Int
+  userId              String
+
+  controleur          User?          @relation("CommandeControleur", fields: [controleurId], references: [id])
+  controleurId        String?
+
+  assignedToId String?    // employé assigné
+  assignedTo   User?      @relation("CommandeAssignedTo", fields: [assignedToId], references: [id])
+
   notifications       Notification[]
+  fournitures         Fourniture[]
+  mesures             Mesure[]   
+  remunerations       Remuneration[]
+  penalites           Penalite[]
+  controles           Controle[]
+  paiements           Paiement[]
+
+  // Index utile pour cron jobs (rappels / retards)
+  @@index([dateLivraisonPrevue, status])
+  @@index([status])
+  @@index([dateCommande])
+}
+
+model Fourniture {
+  id           String      @id @default(uuid())
+  designation  String
+  quantite     Int
+
+  commande     Commande @relation(fields: [commandeId], references: [id])
+  commandeId   String
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Controle {
+  id            String       @id @default(uuid())
+  dateControle  DateTime  @default(now())
+  conforme      Boolean   @default(true)
+  remarques     String
+
+  commande      Commande @relation(fields: [commandeId], references: [id])
+  commandeId    String
+
+  controleur    User     @relation(fields: [controleurId], references: [id])
+  controleurId  String
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Penalite {
+  id           String           @id @default(uuid())
+  type         PenaliteType
+  montant      Float
+  raison       String 
+  datePenalite DateTime      @default(now())
+
+  employe      User          @relation(fields: [employeId], references: [id])
+  employeId    String
+  commande     Commande      @relation(fields: [commandeId], references: [id])
+  commandeId   String
+
+  createdAt    DateTime      @default(now())
+}
+
+model Remuneration {
+  id           String          @id @default(uuid())
+  montant      Float
+  date         DateTime      @default(now())
+  statut       RemuStatus    @default(EN_ATTENTE)
+
+  employe      User          @relation(fields: [employeId], references: [id])
+  employeId    String
+  commande     Commande      @relation(fields: [commandeId], references: [id])
+  commandeId   String
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Notification {
-  id               Int         @id @default(autoincrement())
-  commandeId       Int
+  id               String         @id @default(uuid())
+  commandeId       String
   message          String
+
   dateNotification DateTime    @default(now())
   status           NotifStatus @default(EN_ATTENTE)
 
   commande         Commande    @relation(fields: [commandeId], references: [id])
+  destinataire     User?       @relation("NotificationDestinataire", fields: [destinataireId], references: [id])
+  destinataireId   String?
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+model Paiement {
+  id             String           @id @default(uuid())
+  montant        Float
+  datePaiement   DateTime      @default(now())
+  modePaiement   ModePaiement  @default(ESPECES)
+
+  statut         PaiementStatut @default(VALIDE)
+  description    String?
+
+  // Relation avec la commande
+  commande       Commande      @relation(fields: [commandeId], references: [id])
+  commandeId     String
+
+  // Relation avec le client (facultatif)
+  client         Client?       @relation(fields: [clientId], references: [id])
+  clientId       String?
+
+  // Qui a traité/enregistré le paiement (optionnel)
+  processedBy    User?         @relation("PaiementProcessedBy", fields: [processedById], references: [id])
+  processedById  String?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+enum ModePaiement {
+  ESPECES
+  MOBILE_MONEY
+  CARTE
+  VIREMENT
+}
+
+enum PaiementStatut {
+  EN_ATTENTE
+  VALIDE
+  ECHEC
+  REMBOURSE
 }
 
 enum UserRole {
   ADMIN
+  CONTROLLEUR
   EMPLOYEE
 }
 
@@ -120,13 +254,37 @@ enum Gender {
 
 enum CommandeStatus {
   EN_COURS
+  ASSIGNEE
+  MESURE_ENREGISTREE
+  EN_PRODUCTION
+  EN_CONTROLE
+  NON_CONFORME
+  RETOUCHE
   PRET
   LIVRE
+  RETARD
   ANNULE
 }
 
 enum NotifStatus {
   EN_ATTENTE
-  ENVOYEE
-  LUE
+  ASSIGNATION
+  RAPPEL_LIVRAISON
+  PENALITE
+  VALIDATION
+  LIVRAISON_PRET
+  RETARD
+  CONTROLE
+}
+
+enum PenaliteType {
+  RETARD
+  NON_CONFORME
+  AUTRE
+}
+
+enum RemuStatus {
+  EN_ATTENTE
+  PAYEE
+  EN_RETARD
 }

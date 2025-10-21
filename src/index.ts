@@ -1,3 +1,4 @@
+import http from "http";
 import express from 'express'
 import 'dotenv/config'
 import bodyParser from 'body-parser'
@@ -9,8 +10,17 @@ import mesureRoutes from './routes/mesure.routes';
 import tableauRoutes from './routes/MesureType.routes';
 import commandeRoutes from "./routes/commande.routes";
 import { clerkMiddleware } from '@clerk/express'
+import { Server } from "socket.io";
+import { startCheckDeliveriesJob } from "./services/jobs/checkDeliveries.job";
 
 const app = express()
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
 
 console.log('🔧 Server starting...')
 
@@ -29,15 +39,32 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() })
 });
 
-app.get("/", (req, res) => {
-  res.json({ 
-    message: "API Server is running", 
-    timestamp: new Date().toISOString()
-  })
-})
+io.on("connection", (socket) => {
+  console.log("🟢 Nouvelle connexion Socket:", socket.id);
+
+  // chaque utilisateur s’identifie via son ID Clerk ou DB
+  socket.on("register", (userId: string) => {
+    socket.join(userId); // rejoint une "room" personnelle
+    console.log(`👤 Utilisateur ${userId} rejoint sa room`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔴 Socket déconnecté:", socket.id);
+  });
+}); 
+
+startCheckDeliveriesJob()
+app.set("io", io);
+
+// app.get("/", (req, res) => {
+//   res.json({ 
+//     message: "API Server is running", 
+//     timestamp: new Date().toISOString()
+//   })
+// })
 
 // ✅ CORRECTION : Convertir en NUMBER
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 10000
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8888
 
 // ✅ MAINTENANT ça marche : PORT est un number
 app.listen(PORT, '0.0.0.0', () => {

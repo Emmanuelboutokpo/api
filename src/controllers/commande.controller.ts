@@ -1,20 +1,47 @@
 import { Request, Response } from "express";
- import { differenceInHours } from "date-fns";
 import prisma from "../lib/prisma";
 import { cloudinary } from "../lib/cloudinary";
 import { getAuth } from "@clerk/express";
+import { validationResult } from "express-validator";
+import { createAndSendNotification } from "../services/notification/service";
 
-export const createCommande = async (req: Request, res: Response) => {
- try {
-    const { clientId, mesureId, styleId, dateLivraisonPrevue, description, prix} = req.body;
+export async function createCommande(req:Request, res: Response) {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ success: false, errors: errors.array() });
+    }
+
+    const {
+      clientId,
+      clientPayload,
+      dateLivraisonPrevue,
+      montantAvance,
+      stylePayload,
+      styleId,
+      description,
+      prix,
+    } = req.body;
+
     const { userId } = getAuth(req as any);
-
+    
     if (!userId) return res.status(401).json({ error: 'no clerk session' });
-
     const user = await prisma.user.findUnique({ where: { clerkId: userId }});
-    if (!user) return res.status(403).json({ error: 'user not found in DB' });
+    if (!user) return res.status(403).json({ error: 'user not found in DB' }); 
 
-    const livraisonDate = new Date(dateLivraisonPrevue);
+    if (montantAvance > prix) throw { status: 400, message: 'L’avance ne peut pas dépasser le montant total' };
+     
+    let imageUrl: string | null = null;
+
+    if (req.file) {
+      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: "Latif-client",
+        resource_type: "auto",
+        timeout: 60000,
+      });
+
+      imageUrl = uploadResult.secure_url;
+    }
 
      let imgCmd: string | null = null;
      let audioFile: string | null = null;
@@ -38,52 +65,111 @@ export const createCommande = async (req: Request, res: Response) => {
           audioFile = uploadResult.secure_url;
         }
 
-    const commande = await prisma.commande.create({
-      data: {
-        clientId,
-        mesureId,
-        styleId,
-        description,
-        dateLivraisonPrevue: livraisonDate,
-        prix,
-        imgCmd,
-        audioFile,
-        userId: user.id
+    const result = await prisma.$transaction(async (tx) => {
+      // 1️⃣ CLIENT
+      let client;
+    if (clientId) {
+      const client = await tx.client.findUnique({ where: { id: clientId } });
+      if (!client) throw new Error("Client introuvable");
+    } 
+    
+    if (!clientPayload) throw new Error('Client manquant');
+    client = await tx.client.create({
+    data: {
+      firstName: clientPayload.firstName,
+      lastName: clientPayload.lastName,
+      telephone: clientPayload.telephone,
+      adresse: clientPayload.adresse || null,
+      gender: clientPayload.gender || "M",
+      imageUrl: clientPayload.imageUrl || null,
+    },
+   });
+    
+  const employe = await tx.user.findFirst({ where: {role: 'EMPLOYEE', disponibilite : true } });
+
+  if (!employe) throw new Error('Employé invalide');
+  
+  let style;
+  if (styleId) {
+    style = await tx.style.findUnique({ where: { id: styleId } });
+    if (!style) throw new Error('Style introuvable');
+  } 
+  
+  if (!stylePayload) throw new Error('Style manquant');
+      
+   try {
+      style = await tx.style.create({
+        data: {
+              model: stylePayload.model
+        },
+      });
+    } catch (error: any) {
+          if (error.code === 'P2002') {
+            style = await tx.style.findUnique({ where: { model: stylePayload.model } });
+            if (!style) throw new Error('Style déjà existant mais introuvable');
+          } else throw error;
+        }
+
+      const commande = await tx.commande.create({
+         data: {
+            userId : user.id,
+            description,
+            prix,
+            montantAvance,
+            dateLivraisonPrevue: new Date(dateLivraisonPrevue),
+            clientId: client.id,
+            styleId: style.id,
+            imgCmd,
+            audioFile,
+          },
+      });
+
+      if (montantAvance > 0) {
+        await tx.paiement.create({
+          data: {
+            montant: montantAvance,
+            modePaiement: 'ESPECES',
+            statut: 'VALIDE',
+            commandeId: commande.id,
+            clientId: client.id,
+          },
+        });
       }
-    });
 
-    // Générer les notifications (J-3, J-2, J-1, J)
-    const offsets = [3, 2, 1, 0];
-    const notifData = offsets.map(offset => {
-      const d = new Date(livraisonDate);
-      d.setDate(d.getDate() - offset);
-      // n'ajouter que les rappels dans le futur (optionnel)
-      if (d.getTime() < Date.now()) return null;
-      return {
+      await tx.notification.create({
+        data: {
+          commandeId: commande.id,
+          message: `Nouvelle commande #${commande.id} (Style: ${style.model}) assignée.`,
+          status: 'ASSIGNATION',
+          destinataireId: employe.id,
+        },
+      });
+
+    if (employe) {
+        await createAndSendNotification({
         commandeId: commande.id,
-        message: offset === 0
-          ? `Aujourd'hui : livraison prévue pour la commande #${commande.id}`
-          : `Rappel : livraison prévue dans ${offset} jour(s) pour la commande #${commande.id}`,
-        dateNotification: d
-      };
-    }).filter(Boolean) as Array<{commandeId:number; message:string; dateNotification:Date}>;
-
-    if (notifData.length > 0) {
-      // createMany pour gagner en perf (status prendra la valeur par défaut EN_ATTENTE)
-      await prisma.notification.createMany({ data: notifData });
+        message: `Nouvelle commande #${commande.id} (Style: ${style.model}) assignée.`,
+        destinataireId: employe.id,
+      });
     }
 
-    return res.json({ commande });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'create commande error' });
-  }
-};
+      return { commande, client, style };
+    });
+    
+  return res.status(201).json({
+      message: "Commande créée avec succès",
+      data: result,
+    });
+  } catch (err: any) {
+  console.error(err);
+  res.status(err.status || 500).json({ success: false, message: err.message });
+}
+}
 
 export const getCommandes = async (_req: Request, res: Response) => {
   try {
     const commandes = await prisma.commande.findMany({
-      include: { client: true, mesure: true },
+      include: { client: true, style : true, notifications : true},
       orderBy: { dateCommande: "desc" },
     });
     res.json(commandes);
@@ -96,8 +182,8 @@ export const getCommandeById = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const commande = await prisma.commande.findUnique({
-      where: { id: Number(id) },
-      include: { client: true, mesure: true, notifications: true },
+      where: { id: id },
+      include: { client: true, style : true,  notifications: true },
     });
 
     if (!commande) return res.status(404).json({ message: "Commande non trouvée" });
@@ -113,22 +199,10 @@ export const updateCommande = async (req: Request, res: Response) => {
 
   try {
     const updated = await prisma.commande.update({
-      where: { id: Number(id) },
+      where: { id: id },
       data: { description, dateLivraisonPrevue, status, prix },
-      include: { client: true, mesure: true },
+      include: { client: true},
     });
-
-    // Si le statut change à PRET ou LIVRE → créer une notification
-    if (["PRET", "LIVRE"].includes(status)) {
-      await prisma.notification.create({
-        data: {
-          commandeId: updated.id,
-          message: `Commande ${status === "PRET" ? "prête" : "livrée"} pour ${updated.client.firstName} ${updated.client.lastName}`,
-          dateNotification: new Date(),
-        },
-      });
-    }
-
     res.json(updated);
   } catch (error) {
     console.error(error);
@@ -140,44 +214,152 @@ export const updateCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    await prisma.commande.delete({ where: { id: Number(id) } });
+    await prisma.commande.delete({ where: { id: id } });
     res.json({ message: "Commande supprimée avec succès" });
   } catch (error) {
     res.status(500).json({ message: "Erreur lors de la suppression de la commande" });
   }
 };
 
-// ✅ Vérifier et créer des rappels automatiques (à exécuter toutes les X heures)
-export const checkLivraisonReminders = async () => {
-  const now = new Date();
+export const acceptCommande = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { userId } = getAuth(req as any);
 
-  const commandes = await prisma.commande.findMany({
-    where: {
-      status: "EN_COURS",
-    },
-    include: { client: true },
-  });
+  try {
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
 
-  for (const commande of commandes) {
-    const hoursLeft = differenceInHours(new Date(commande.dateLivraisonPrevue), now);
+    if (!user) return res.status(403).json({ error: "User not found in DB" });
 
-    if (hoursLeft <= 24 && hoursLeft > 0) {
-      const existingNotif = await prisma.notification.findFirst({
-        where: {
-          commandeId: commande.id,
-          message: { contains: "approche" },
-        },
+    const commande = await prisma.commande.findUnique({ where: { id } });
+    if (!commande) return res.status(404).json({ error: "Commande not found" });
+    if (commande.assignedToId !== user.id) return res.status(403).json({ error: "Not allowed" });
+
+    const updated = await prisma.commande.update({ where: { id }, data: { status: "EN_COURS" }});
+
+    if (commande.userId) {
+      await createAndSendNotification({
+        commandeId: id,
+        message: `L'employé a accepté la commande ${id}`,
+        destinataireId: commande.userId ,
       });
+    }
 
-      if (!existingNotif) {
-        await prisma.notification.create({
+    return res.json(updated);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const confirmPreparation = async (req: Request, res: Response) => {
+  const { id } = req.params; 
+ const { userId } = getAuth(req as any);
+
+  try {
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+
+    if (!user) return res.status(403).json({ error: "User not found in DB" });
+
+    const commande = await prisma.commande.findUnique({ where: { id } });
+    if (!commande) return res.status(404).json({ error: "Commande not found" });
+    if (commande.assignedToId !== user.id && user.role !== "ADMIN") return res.status(403).json({ error: "Not allowed" });
+
+    const result = await prisma.$transaction(async (tx) => {
+      const c = await tx.commande.update({ where: { id }, data: { status: 'MESURE_ENREGISTREE' }});
+     
+      if (c.userId) {
+        await tx.notification.create({
           data: {
-            commandeId: commande.id,
-            message: `⚠️ Livraison de la commande pour ${commande.client.firstName} ${commande.client.lastName} prévue dans ${Math.round(hoursLeft)}h.`,
-            dateNotification: new Date(),
+            commandeId: id,
+            message: `Préparation terminée par ${user.id} pour la commande ${id}`,
+            destinataireId: c.userId,
           },
         });
       }
+      return c;
+    });
+
+    if (commande.userId) {
+      await createAndSendNotification({
+        commandeId: id,
+        message: `Préparation terminée pour la commande ${id}`,
+        destinataireId: commande.userId,
+      });
     }
+
+    return res.json({ success: true, commande: result });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
+
+export const markAsReadyForControl = async (req : Request, res : Response) => {
+  const { id } = req.params;  
+   const { userId } = getAuth(req as any);
+
+  try {
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+
+    if (!user) return res.status(403).json({ error: "User not found in DB" });
+
+  const commande = await prisma.commande.findUnique({ where: { id } });
+  if (!commande) return res.status(404).json({ error: "Commande introuvable" });
+  if (commande.assignedToId !== user.id)
+    return res.status(403).json({ error: "Vous n'êtes pas autorisé." });
+
+  const updated = await prisma.commande.update({
+    where: { id },
+    data: { status: "EN_CONTROLE" },
+  });
+
+  const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
+  if (admin) {
+    await createAndSendNotification({
+      commandeId: commande.id,
+      destinataireId: admin.id,
+      message: `Commande ${commande.id} prête pour le contrôle.`,
+      type: "VALIDATION",
+    });
+  }
+  res.json(updated);
+}
+catch (error) {
+    res.status(500).json({ message: "Erreur lors de la suppression de la commande" });
+  }
+};
+
+export const assignControleur = async (req : Request, res : Response) => {
+  const { commandeId, controleurId } = req.body;
+    const { userId } = getAuth(req as any);
+
+  try {
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+
+    if (!user) return res.status(403).json({ error: "User not found in DB" });
+
+  if (user.role !== "ADMIN") return res.status(403).json({ error: "Accès refusé" });
+
+  const commande = await prisma.commande.update({
+    where: { id: commandeId },
+    data: { controleurId },
+  });
+
+  await createAndSendNotification({
+    commandeId,
+    destinataireId: controleurId,
+    message: `Nouvelle commande à contrôler : ${commande.id}`,
+    type: "CONTROLE",
+  });
+
+  res.json(commande);
+  }
+catch (error) {
+    res.status(500).json({ message: "Erreur lors de la suppression de la commande" });
+  }
+};
+

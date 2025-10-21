@@ -127,7 +127,7 @@ export const getClientsByStyle = async (
 
 // client par ID
 export const getClientById = async (req: Request, res: Response) :Promise<any> => {
-  const client = await prisma.client.findUnique({ where: { id: parseInt(req.params.id) }, include: { mesures: true, commandes : true }, });
+  const client = await prisma.client.findUnique({ where: { id: req.params.id }, include: { mesures: true, commandes : true }, });
   if (!client) return res.status(404).json({ message: 'Client non trouvée' });
   res.json(client);
 };
@@ -135,14 +135,12 @@ export const getClientById = async (req: Request, res: Response) :Promise<any> =
 //route de la page d'accueil
 export const getClientsGroupedByStyle = async (req: Request, res: Response) => {
   try {
-    // 🔹 Récupération de tous les styles avec leurs clients associés
     const styles = await prisma.style.findMany({
       include: {
         clients: true, // ✅ N:N relation
       },
     });
 
-    // 🔹 On groupe les clients par modèle de style
     const grouped = styles.reduce((acc: any, style: { model: string; clients: any[] }) => {
       const model = style.model;
 
@@ -150,7 +148,6 @@ export const getClientsGroupedByStyle = async (req: Request, res: Response) => {
         acc[model] = [];
       }
 
-      // Ajout des clients du style actuel
       style.clients.forEach((client) => {
         const exists = acc[model].some((c: any) => c.id === client.id);
         if (!exists) {
@@ -161,10 +158,9 @@ export const getClientsGroupedByStyle = async (req: Request, res: Response) => {
       return acc;
     }, {});
 
-    // 🔹 On limite à 4 clients par style
     const limited = Object.entries(grouped).map(([model, clients]: [string, any]) => ({
       model,
-      clients: clients.slice(0, 4), // max 4 clients
+      clients: clients.slice(0, 4),
     }));
 
     res.json({ success: true, data: limited });
@@ -229,13 +225,13 @@ export const getClientsGroupedByStyle = async (req: Request, res: Response) => {
 export const updateClient = async (req: Request, res: Response) => {
  const { firstName, lastName, telephone, adresse } = req.body;
   const updated = await prisma.client.update({
-    where: { id: parseInt(req.params.id) },
+    where: { id: req.params.id },
     data: { firstName, lastName, telephone, adresse },
   });
   res.json(updated);
 };
 
 export const deleteClient = async (req: Request, res: Response) => {
-  await prisma.client.delete({ where: { id: parseInt(req.params.id) } });
+  await prisma.client.delete({ where: { id: req.params.id } });
   res.json({ message: 'Client supprimé' });
 };

@@ -81,10 +81,10 @@ export const updateStyle = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { model } = req.body;
 
-    const sizeId = Number(id);
+     
 
     const updated = await prisma.style.update({
-      where: { id: sizeId },
+      where: { id: id },
       data: { model }
     });
 
@@ -100,7 +100,7 @@ export const deleteStyle = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     await prisma.style.delete({
-      where: { id: Number(id) },
+      where: { id: id },
     });
 
     res.status(200).json({ message: "Model supprimé avec succès." });

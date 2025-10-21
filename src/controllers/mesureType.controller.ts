@@ -45,7 +45,7 @@ export const getMesureTypeById = async (req: Request, res: Response, next: NextF
   try {
     const { id } = req.params;      
     const mesure = await prisma.mesureType.findUnique({
-      where: { id: Number(id) },
+      where: { id: id},
     }); 
     res.json({ success: true, data: mesure });
   } 
@@ -60,7 +60,7 @@ export const updateMesureType = async (req: Request, res: Response, next: NextFu
     const { label } = req.body;
 
     const updated = await prisma.mesureType.update({
-      where: { id: Number(id) },
+      where: { id: id },
       data: { label},
     });
 
@@ -75,7 +75,7 @@ export const deleteMesureType = async (req: Request, res: Response, next: NextFu
     const { id } = req.params;
 
     await prisma.mesure.delete({
-      where: { id: Number(id) },
+      where: { id: id },
     });
 
     res.json({ success: true, message: 'Mesure supprimée du tableau' });

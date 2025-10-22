@@ -29,19 +29,21 @@ export const syncUser = async (req: Request, res: Response, next: NextFunction) 
       await prisma.user.upsert({
         where: { clerkId: userId },
         update: {
-          name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
+          firstName: clerkUser.firstName || '',
+          lastName: clerkUser.lastName || '',
           email: clerkUser.emailAddresses[0]?.emailAddress || '',
         },
         create: {
           clerkId: userId,
-          name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
+          firstName: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
+          lastName: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
           email: clerkUser.emailAddresses[0]?.emailAddress || '',
           role: 'EMPLOYEE',
         },
       });
     };
 
-    console.log(`✅ Synchronisation réussie: ${existing?.name} (${existing?.role})`);
+    console.log(`✅ Synchronisation réussie: ${existing?.firstName} (${existing?.role})`);
 
     // Attacher l'utilisateur à la requête
     (req as any).user = existing;

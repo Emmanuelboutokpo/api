@@ -11,7 +11,8 @@ datasource db {
 
 model User {
   id             String            @id @default(uuid())
-  name           String
+  firstName      String
+  lastName       String
   email          String         @unique
   clerkId        String         @unique
   expoPushToken  String?

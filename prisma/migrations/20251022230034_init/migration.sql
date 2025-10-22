@@ -25,7 +25,8 @@ CREATE TYPE "RemuStatus" AS ENUM ('EN_ATTENTE', 'PAYEE', 'EN_RETARD');
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
+    "firstName" TEXT NOT NULL,
+    "lastName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "clerkId" TEXT NOT NULL,
     "expoPushToken" TEXT,

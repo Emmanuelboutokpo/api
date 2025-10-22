@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-import { getMe, getMyProfile, getUsers, updateUser } from '../controllers/users.controller';
+import { createOrUpdate, getMyProfile, getUsers } from '../controllers/users.controller';
 
 import type { Router as ExpressRouter } from 'express';
 import { requireAuth } from '@clerk/express';
@@ -9,9 +9,8 @@ const router: ExpressRouter = Router();
 
 
 // Routes
-  router.get('/me', requireAuth(), getMe );
+  router.post('/create-or-update', requireAuth(), createOrUpdate );
   router.get('/user/me', syncUser, getMyProfile);
   router.get('/users', requireAuth(), getUsers);
-  router.patch('/users/:userId', requireAuth(), updateUser);  
 
 export default router;

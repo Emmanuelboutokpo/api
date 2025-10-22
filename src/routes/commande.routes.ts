@@ -11,11 +11,12 @@ import {
   assignControleur,
 } from "../controllers/commande.controller";
 import { requireAuth } from "@clerk/express";
+import { syncUser } from "../middlewares/syncUser";
 
 const router: Router = Router();
 
-router.post("/commandes", requireAuth(), createCommande);
-router.get("/commande", getCommandes);
+router.post("/commandes",syncUser, requireAuth(), createCommande);
+router.get("/commande",syncUser, getCommandes);
 router.get("/commande/:id", getCommandeById);
 router.put("/commande/:id", updateCommande);
 router.delete("/commande/:id", deleteCommande);

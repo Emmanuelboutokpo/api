@@ -125,3 +125,25 @@ if (!currentUser) {
   res.json({ message: 'User updated', user: updatedUser });
 };
 
+export const getMyProfile = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    console.log('le user connecté : ' + user);
+    
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        clerkId: user.clerkId,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        disponibilite: user.disponibilite,
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur getMyProfile:', error);
+    res.status(500).json({ success: false, error: 'Erreur serveur' });
+  }
+};

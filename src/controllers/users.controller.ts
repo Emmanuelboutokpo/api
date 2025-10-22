@@ -106,10 +106,9 @@ export const getMyProfile = async (req: Request, res: Response) => {
     const user = (req as any).user;
 
      if (!user) {
-  
       return res.status(401).json({ 
         success: false, 
-        error: 'Utilisateur non authentifié' 
+        error: '❌ Utilisateur non authentifié' 
       });
     }
     

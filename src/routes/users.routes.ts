@@ -9,7 +9,7 @@ const router: ExpressRouter = Router();
 
 // Routes
   router.post('/create-or-update', createOrUpdate );
-  router.get('/user/me', getUser);
+  router.get('/user/me/:clerkId', getUser);
   router.get('/users', requireAuth(), getUsers);
 
 export default router;

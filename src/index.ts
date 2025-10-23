@@ -28,7 +28,7 @@ const io = new Server(server, {
 
 console.log('🔧 Server starting...')
 
-app.use(clerkMiddleware());
+//app.use(clerkMiddleware());
 //app.use(syncUser)
 app.use(cors({origin: "*", credentials: true}));
 app.use(bodyParser.json());

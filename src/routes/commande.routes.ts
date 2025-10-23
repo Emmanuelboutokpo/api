@@ -15,8 +15,8 @@ import { syncUser } from "../middlewares/syncUser";
 
 const router: Router = Router();
 
-router.post("/commandes",syncUser, requireAuth(), createCommande);
-router.get("/commande",syncUser, getCommandes);
+router.post("/commandes", requireAuth(), createCommande);
+router.get("/commande", getCommandes);
 router.get("/commande/:id", getCommandeById);
 router.put("/commande/:id", updateCommande);
 router.delete("/commande/:id", deleteCommande);

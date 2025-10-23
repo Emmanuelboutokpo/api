@@ -29,38 +29,30 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 };
 
 export const createOrUpdate = async (req: Request, res: Response): Promise<void> => {
-    const {
-    clerkId,
-    email,
-    firstName,
-    lastName,
-  } = req.body;
+  const { clerkId, email, firstName, lastName } = req.body;
 
-   if (!clerkId || !email || !firstName || !lastName) {
-      res.status(400).json({ message: 'Missing required fields' });
-      return;
+  if (!clerkId || !email || !firstName || !lastName) {
+    res.status(400).json({ message: 'Missing required fields' });
+    return;
   }
 
-   try {
-    // ✅ Vérifier si le user existe déjà par clerkId OU email
-    let existing = await prisma.user.findFirst({
+  try {
+    // ✅ Vérifier si le user existe déjà
+    let user = await prisma.user.findFirst({
       where: {
-        OR: [
-          { clerkId },
-          { email },
-        ],
+        OR: [{ clerkId }, { email }],
       },
     });
 
-    if (!existing) {
-      await prisma.user.upsert({
+    // ✅ Créer ou mettre à jour
+    if (!user) {
+      user = await prisma.user.upsert({
         where: { clerkId },
         update: {
           firstName: firstName || '',
           lastName: lastName,
           email: email || '',
         },
-
         create: {
           clerkId,
           email,
@@ -69,52 +61,15 @@ export const createOrUpdate = async (req: Request, res: Response): Promise<void>
           role: 'EMPLOYEE',
         },
       });
-    };
+    }
 
-    res.status(201).json({ success: true, existing });
-
+    res.status(201).json({ success: true, data: user });
   } catch (err) {
     console.error('Error creating/updating user:', err);
-    res.status(500).json({ message: 'Server error' });;
+    res.status(500).json({ message: 'Server error' });
   }
-  
-//   const { userId } = req.params;
-//   const { name, role, email } = req.body;
-//   const { userId: clerkId } = getAuth(req);
-//   const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-
-// if (!targetUser) {
-//   res.status(404).json({ message: 'User not found' });
-//   return;
-// }
-
-// if (!clerkId) {
-//   res.status(401).json({ message: 'Unauthorized: missing clerkId' });
-//   return;
-// }
-
-// const currentUser = await prisma.user.findUnique({ where: { clerkId } });
-
-// if (!currentUser) {
-//   res.status(401).json({ message: 'Unauthorized' });
-//   return;
-// }
-
-//   const data: any = {};
-//   if (name) data.name = name;
-//   if (email) data.email = email;
-
-//   if (role && currentUser.role === 'ADMIN') {
-//     data.role = role;
-//   }
-
-//   const updatedUser = await prisma.user.update({
-//     where: { id: userId },
-//     data,
-//   });
-
-//   res.json({ message: 'User updated', user: updatedUser });
 };
+
 
 export const getMyProfile = async (req: Request, res: Response) => {
   try {

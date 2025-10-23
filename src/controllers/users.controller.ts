@@ -70,32 +70,19 @@ export const createOrUpdate = async (req: Request, res: Response): Promise<void>
   }
 };
 
-
-export const getMyProfile = async (req: Request, res: Response) => {
+export const getUser = async (req: Request, res: Response): Promise<void> => {
+  const { clerkId } = req.params;
   try {
-    const user = (req as any).user;
-
-     if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        error: '❌ Utilisateur non authentifié' 
-      });
+    const user = await prisma.user.findFirst({ where : {clerkId} });
+   
+    if (!user) {
+        res.status(404).json({ message: 'User not found' });
+        return;
     }
-    
-    res.json({
-      success: true,
-      data: {
-        id: user.id,
-        clerkId: user.clerkId,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        disponibilite: user.disponibilite,
-      }
-    });
-
-  } catch (error) {
-    console.error('Erreur getMyProfile:', error);
-    res.status(500).json({ success: false, error: 'Erreur serveur' });
+    res.status(200).json({ success: true, user });
+  } catch (err) {
+    console.error('Error fetching user:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
+

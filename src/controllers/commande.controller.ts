@@ -2,176 +2,20 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { cloudinary } from "../lib/cloudinary";
 import { getAuth } from "@clerk/express";
-import { validationResult } from "express-validator";
 import { createAndSendNotification } from "../services/notification/service";
-
-// export async function createCommande(req:Request, res: Response) {
-//   try {
-//     const errors = validationResult(req);
-//     if (!errors.isEmpty()) {
-//       return res.status(422).json({ success: false, errors: errors.array() });
-//     }
-
-//     const {
-//       clientId,
-//       clientPayload,
-//       dateLivraisonPrevue,
-//       montantAvance,
-//       stylePayload,
-//       styleId,
-//       description,
-//       prix,
-//     } = req.body;
-
-//     const { userId } = getAuth(req as any);
-    
-//     if (!userId) return res.status(401).json({ error: 'no clerk session' });
-//     const user = await prisma.user.findUnique({ where: { clerkId: userId }});
-//     if (!user) return res.status(403).json({ error: 'user not found in DB' }); 
-
-//     if (montantAvance > prix) throw { status: 400, message: 'L’avance ne peut pas dépasser le montant total' };
-     
-//     let imageUrl: string | null = null;
-
-//     if (req.file) {
-//       const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-//         folder: "Latif-client",
-//         resource_type: "auto",
-//         timeout: 60000,
-//       });
-
-//       imageUrl = uploadResult.secure_url;
-//     }
-
-//      let imgCmd: string | null = null;
-//      let audioFile: string | null = null;
-    
-//         if (req.file) {
-//           const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-//             folder: 'Latif-client',
-//             resource_type: 'auto',
-//             timeout: 60000, 
-//           });
-    
-//           imgCmd = uploadResult.secure_url;
-//         }
-      
-//         if (audioFile) {
-//           const uploadResult = await cloudinary.uploader.upload(audioFile, {
-//             folder: 'Latif-audio',  
-//             resource_type: 'auto',
-//             timeout: 60000, 
-//           });
-//           audioFile = uploadResult.secure_url;
-//         }
-
-//     const result = await prisma.$transaction(async (tx) => {
-//       // 1️⃣ CLIENT
-//       let client;
-//     if (clientId) {
-//       const client = await tx.client.findUnique({ where: { id: clientId } });
-//       if (!client) throw new Error("Client introuvable");
-//     } 
-    
-//     if (!clientPayload) throw new Error('Client manquant');
-    
-//     client = await tx.client.create({
-//     data: {
-//       firstName: clientPayload.firstName,
-//       lastName: clientPayload.lastName,
-//       telephone: clientPayload.telephone,
-//       adresse: clientPayload.adresse || null,
-//       gender: clientPayload.gender || "M",
-//       imageUrl: clientPayload.imageUrl || null,
-//     },
-//    });
-    
-//   const employe = await tx.user.findFirst({ where: {role: 'EMPLOYEE', disponibilite : true } });
-
-//   if (!employe) throw new Error('Employé invalide');
-  
-//   let style;
-//   if (styleId) {
-//     style = await tx.style.findUnique({ where: { id: styleId } });
-//     if (!style) throw new Error('Style introuvable');
-//   } 
-  
-//   if (!stylePayload) throw new Error('Style manquant');
-      
-//    try {
-//       style = await tx.style.create({
-//         data: {
-//               model: stylePayload.model
-//         },
-//       });
-//     } catch (error: any) {
-//           if (error.code === 'P2002') {
-//             style = await tx.style.findUnique({ where: { model: stylePayload.model } });
-//             if (!style) throw new Error('Style déjà existant mais introuvable');
-//           } else throw error;
-//         }
-
-//       const commande = await tx.commande.create({
-//          data: {
-//             userId : user.id,
-//             description,
-//             prix,
-//             montantAvance,
-//             dateLivraisonPrevue: new Date(dateLivraisonPrevue),
-//             clientId: client.id,
-//             styleId: style.id,
-//             imgCmd,
-//             audioFile,
-//           },
-//       });
-
-//       if (montantAvance > 0) {
-//         await tx.paiement.create({
-//           data: {
-//             montant: montantAvance,
-//             modePaiement: 'ESPECES',
-//             statut: 'VALIDE',
-//             commandeId: commande.id,
-//             clientId: client.id,
-//           },
-//         });
-//       }
-
-//       await tx.notification.create({
-//         data: {
-//           commandeId: commande.id,
-//           message: `Nouvelle commande #${commande.id} (Style: ${style.model}) assignée.`,
-//           status: 'ASSIGNATION',
-//           destinataireId: employe.id,
-//         },
-//       });
-
-//     if (employe) {
-//         await createAndSendNotification({
-//         commandeId: commande.id,
-//         message: `Nouvelle commande #${commande.id} (Style: ${style.model}) assignée.`,
-//         destinataireId: employe.id,
-//       });
-//     }
-
-//       return { commande, client, style };
-//     });
-    
-//   return res.status(201).json({
-//       message: "Commande créée avec succès",
-//       data: result,
-//     });
-//   } catch (err: any) {
-//   console.error(err);
-//   res.status(err.status || 500).json({ success: false, message: err.message });
-// }
-// }
 
 export async function createCommande(req: Request, res: Response) {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(422).json({ success: false, errors: errors.array() });
+    let bodyData = req.body;
+    
+    if (req.headers['content-type']?.includes('multipart/form-data')) {
+      if (typeof req.body.clientPayload === 'string') {
+        bodyData = {
+          ...req.body,
+          clientPayload: JSON.parse(req.body.clientPayload),
+          stylePayload: JSON.parse(req.body.stylePayload)
+        };
+      }
     }
 
     const {
@@ -183,7 +27,7 @@ export async function createCommande(req: Request, res: Response) {
       styleId,
       description,
       prix,
-    } = req.body;
+    } = bodyData; // ✅ Utiliser bodyData au lieu de req.body
 
     const { userId } = getAuth(req as any);
     if (!userId) return res.status(401).json({ error: "no clerk session" });
@@ -191,8 +35,16 @@ export async function createCommande(req: Request, res: Response) {
     const user = await prisma.user.findUnique({ where: { clerkId: userId } });
     if (!user) return res.status(403).json({ error: "user not found in DB" });
 
-    if (montantAvance > prix)
-      throw { status: 400, message: "L’avance ne peut pas dépasser le montant total" };
+    // ✅ Convertir les montants en nombres
+    const prixNum = Number(prix);
+    const montantAvanceNum = Number(montantAvance || 0);
+
+    if (montantAvanceNum > prixNum) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "L'avance ne peut pas dépasser le montant total" 
+      });
+    }
 
     let imgCmd: string | null = null;
     let audioFile: string | null = null;
@@ -205,6 +57,25 @@ export async function createCommande(req: Request, res: Response) {
         timeout: 60000,
       });
       imgCmd = uploadResult.secure_url;
+    }
+
+    // ✅ Gérer plusieurs fichiers si nécessaire
+    if (req.files) {
+      const files = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
+      
+      for (const file of files) {
+        const uploadResult = await cloudinary.uploader.upload(file.path, {
+          folder: "Latif-client",
+          resource_type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+          timeout: 60000,
+        });
+
+        if (file.fieldname === 'imgCmd') {
+          imgCmd = uploadResult.secure_url;
+        } else if (file.fieldname === 'audioFile') {
+          audioFile = uploadResult.secure_url;
+        }
+      }
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -259,23 +130,22 @@ export async function createCommande(req: Request, res: Response) {
         data: {
           userId: user.id,
           description,
-          prix,
-          montantAvance,
+          prix: prixNum,
+          montantAvance: montantAvanceNum,
           dateLivraisonPrevue: new Date(dateLivraisonPrevue),
           clientId: client.id,
           styleId: style.id,
           imgCmd,
           audioFile,
-          assignedToId: employe.id, // 🔥 assignation immédiate
-          status: "ASSIGNEE",
+          assignedToId: employe.id,
         },
       });
 
       // 💰 Paiement initial
-      if (montantAvance > 0) {
+      if (montantAvanceNum > 0) {
         await tx.paiement.create({
           data: {
-            montant: montantAvance,
+            montant: montantAvanceNum,
             modePaiement: "ESPECES",
             statut: "VALIDE",
             commandeId: commande.id,
@@ -284,7 +154,7 @@ export async function createCommande(req: Request, res: Response) {
         });
       }
 
-      // 🔔 Notification BD (OK car commande existe déjà)
+      // 🔔 Notification
       const notif = await tx.notification.create({
         data: {
           commandeId: commande.id,
@@ -294,7 +164,7 @@ export async function createCommande(req: Request, res: Response) {
         },
       });
 
-      // 🚀 Envoi de la notif temps réel (expo ou websocket)
+      // 🚀 Envoi de la notif temps réel
       await createAndSendNotification({
         commandeId: commande.id,
         message: notif.message,
@@ -310,14 +180,13 @@ export async function createCommande(req: Request, res: Response) {
       data: result,
     });
   } catch (err: any) {
-    console.error(err);
+    console.error('❌ Erreur création commande:', err);
     res.status(err.status || 500).json({
       success: false,
       message: err.message || "Erreur serveur",
     });
   }
 }
-
 export const getCommandes = async (_req: Request, res: Response) => {
   try {
     const commandes = await prisma.commande.findMany({

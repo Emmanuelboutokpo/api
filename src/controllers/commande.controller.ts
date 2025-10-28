@@ -3,9 +3,15 @@ import prisma from "../lib/prisma";
 import { cloudinary } from "../lib/cloudinary";
 import { getAuth } from "@clerk/express";
 import { createAndSendNotification } from "../services/notification/service";
+import { validationResult } from "express-validator";
 
 export async function createCommande(req: Request, res: Response) {
   try {
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(422).json({ success: false, errors: errors.array() });
+    }
     let bodyData = req.body;
     
     if (req.headers['content-type']?.includes('multipart/form-data')) {

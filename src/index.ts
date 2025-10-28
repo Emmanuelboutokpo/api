@@ -14,21 +14,12 @@ import FournitureRoutes from "./routes/fourniture.route";
 import userRoute from "./routes/users.routes"
 
 import { clerkMiddleware } from '@clerk/express'
-import { Server } from "socket.io";
 import { startCheckDeliveriesJob } from "./services/jobs/checkDeliveries.job";
+import { initializeSocket } from "./lib/socket";
 
 const app = express()
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
-});
 
-console.log('🔧 Server starting...')
-
-//app.use(clerkMiddleware());
+app.use(clerkMiddleware());
 //app.use(syncUser)
 app.use(cors({origin: "*", credentials: true}));
 app.use(bodyParser.json());
@@ -46,36 +37,29 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() })
 });
 
-io.on("connection", (socket) => {
-  console.log("🟢 Nouvelle connexion Socket:", socket.id);
+// ✅ CORRECTION : Initialiser Socket.io AVANT de créer le serveur
+const { server, io } = initializeSocket(app);
 
-  // chaque utilisateur s’identifie via son ID Clerk ou DB
-  socket.on("register", (userId: string) => {
-    socket.join(userId); // rejoint une "room" personnelle
-    console.log(`👤 Utilisateur ${userId} rejoint sa room`);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("🔴 Socket déconnecté:", socket.id);
-  });
-}); 
-
-startCheckDeliveriesJob()
-app.set("io", io);
-
-// app.get("/", (req, res) => {
-//   res.json({ 
-//     message: "API Server is running", 
-//     timestamp: new Date().toISOString()
-//   })
-// })
-
-// ✅ CORRECTION : Convertir en NUMBER
+// ✅ CORRECTION : Utiliser le serveur HTTP de Socket.io au lieu de app.listen()
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 8888
 
-// ✅ MAINTENANT ça marche : PORT est un number
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`)
+  console.log(`🔌 Socket.io initialized`);
+});
+
+// Démarrer les jobs cron
+startCheckDeliveriesJob()
+
+// Exposer io pour l'utiliser dans d'autres fichiers si nécessaire
+app.set("io", io);
+
+app.get("/", (req, res) => {
+  res.json({ 
+    message: "API Server is running", 
+    timestamp: new Date().toISOString(),
+    socket: io ? "initialized" : "not initialized"
+  })
 })
 
-export default app
+export { app, io };

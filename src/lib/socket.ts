@@ -1,24 +1,41 @@
- import { Server } from "socket.io";
+// lib/socket.ts
+import { Server as SocketIOServer } from 'socket.io';
+import { createServer } from 'http';
+import { Express } from 'express';
 
-let io :any;
+let io: SocketIOServer | null = null;
 
-export const initSocket = (server : any) => {
-  io = new Server(server, {
-    cors: { origin: "*" },
+export const initializeSocket = (app: Express) => {
+  const server = createServer(app);
+  
+  io = new SocketIOServer(server, {
+    cors: {
+      origin: "*", // À modifier en production
+      methods: ["GET", "POST"]
+    },
+    transports: ['websocket', 'polling']
   });
 
-  io.on("connection", (socket : any) => {
-    console.log("✅ User connected:", socket.id);
+  io.on('connection', (socket) => {
+    console.log(`✅ Client connecté: ${socket.id}`);
 
-    socket.on("disconnect", () => {
-      console.log("❌ User disconnected:", socket.id);
+    // Rejoindre la room de l'utilisateur
+    socket.on('join-user-room', (userId: string) => {
+      socket.join(userId);
+      console.log(`👤 User ${userId} a rejoint sa room`);
+    });
+
+    socket.on('disconnect', () => {
+      console.log(`❌ Client déconnecté: ${socket.id}`);
     });
   });
 
-  return io;
+  return { server, io };
 };
 
 export const getIO = () => {
-  if (!io) throw new Error("Socket.io not initialized");
+  if (!io) {
+    throw new Error('Socket.io non initialisé. Appelez initializeSocket() d\'abord.');
+  }
   return io;
 };

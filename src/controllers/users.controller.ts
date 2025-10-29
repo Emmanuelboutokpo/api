@@ -171,7 +171,7 @@ export const getEmployeesAndControleurs = async (req: Request, res: Response): P
 
     // ✅ Filtre par disponibilité
     if (disponibilite !== undefined) {
-      where.disponibilite = disponibilite === 'true';
+      where.disponibilite = disponibilite === 'false' || disponibilite === 'true';
     }
 
     // ✅ Recherche

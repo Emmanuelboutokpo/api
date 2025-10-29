@@ -1,38 +1,63 @@
 import prisma from "../lib/prisma";
 import { Request, Response } from 'express';
 
- export const getAllClients = async (req: Request, res: Response): Promise<any> => {
-    const { page = 1, limit = 10, firstName, lastName } = req.query; // ✅ Correction: firstName au lieu de firsName
+// controllers/client.controller.ts
+export const getAllClients = async (req: Request, res: Response): Promise<any> => {
+    const { page = 1, limit = 10, search, firstName, lastName, telephone } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
-     const filters: any = {};
-    if (firstName) {
-        filters.firstName = { contains: firstName as string, mode: 'insensitive' };  
-    }
-    if (lastName) {
-        filters.lastName = { contains: lastName as string, mode: 'insensitive' };   
+    // ✅ Recherche globale sur tous les champs
+    const filters: any = {};
+    
+    if (search) {
+        filters.OR = [
+            { firstName: { contains: search as string, mode: 'insensitive' } },
+            { lastName: { contains: search as string, mode: 'insensitive' } },
+            { telephone: { contains: search as string, mode: 'insensitive' } },
+            { adresse: { contains: search as string, mode: 'insensitive' } },
+        ];
+    } else {
+        // ✅ Recherche spécifique par champ
+        if (firstName) {
+            filters.firstName = { contains: firstName as string, mode: 'insensitive' };
+        }
+        if (lastName) {
+            filters.lastName = { contains: lastName as string, mode: 'insensitive' };
+        }
+        if (telephone) {
+            filters.telephone = { contains: telephone as string, mode: 'insensitive' };
+        }
     }
 
     try {
-        const [total, clients] = await Promise.all([  
+        const [total, clients] = await Promise.all([
             prisma.client.count({ where: filters }),
             prisma.client.findMany({
                 where: filters,
                 skip,
                 take,
                 orderBy: { createdAt: 'desc' },
-                include: { mesures: true, commandes: true },
+                include: { 
+                    mesures: true, 
+                    commandes: {
+                        select: {
+                            id: true,
+                            status: true,
+                            prix: true
+                        }
+                    } 
+                },
             }),
         ]);
 
         return res.status(200).json({
-            success: true, 
-            data: clients,  
+            success: true,
+            data: clients,
             pagination: {
                 total,
                 page: Number(page),
-                limit: Number(limit),  
+                limit: Number(limit),
                 totalPages: Math.ceil(total / Number(limit)),
             },
         });
@@ -45,7 +70,7 @@ import { Request, Response } from 'express';
     }
 };
 
-// client par ID
+
 export const getClientById = async (req: Request, res: Response) :Promise<any> => {
   const client = await prisma.client.findUnique({ where: { id: req.params.id }, include: { mesures: true, commandes : true }, });
   if (!client) return res.status(404).json({ message: 'Client non trouvée' });

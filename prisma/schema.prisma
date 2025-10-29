@@ -15,6 +15,7 @@ model User {
   lastName       String
   email          String         @unique
   clerkId        String         @unique
+  img            String?
   expoPushToken  String?
   role           UserRole       @default(EMPLOYEE)
   createdAt      DateTime       @default(now())

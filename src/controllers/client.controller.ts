@@ -1,46 +1,48 @@
 import prisma from "../lib/prisma";
 import { Request, Response } from 'express';
 
-export const getAllClients = async (req: Request, res: Response) :Promise<any> => {
-    const { page = 1, limit = 10, firsName, lastName } = req.query;
+ export const getAllClients = async (req: Request, res: Response): Promise<any> => {
+    const { page = 1, limit = 10, firstName, lastName } = req.query; // ✅ Correction: firstName au lieu de firsName
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
 
-    // Construire les conditions de filtrage
-    const filters: any = {};
-    if (firsName) {
-        filters.firsName = { contains: firsName as string, mode: 'insensitive' };
+     const filters: any = {};
+    if (firstName) {
+        filters.firstName = { contains: firstName as string, mode: 'insensitive' };  
     }
     if (lastName) {
-        filters.lastName = lastName as string;
+        filters.lastName = { contains: lastName as string, mode: 'insensitive' };   
     }
 
     try {
-
-        const [clients, total] = await Promise.all([
+        const [total, clients] = await Promise.all([  
             prisma.client.count({ where: filters }),
             prisma.client.findMany({
                 where: filters,
                 skip,
                 take,
                 orderBy: { createdAt: 'desc' },
-                include: { mesures: true, commandes : true },
+                include: { mesures: true, commandes: true },
             }),
         ]);
 
         return res.status(200).json({
-            data: clients,
+            success: true, 
+            data: clients,  
             pagination: {
                 total,
                 page: Number(page),
-                limit: limit,
+                limit: Number(limit),  
+                totalPages: Math.ceil(total / Number(limit)),
             },
         });
     } catch (error) {
         console.error('Erreur lors de la récupération des clients', error);
-        return res.status(500).json({ message: 'Erreur serveur' });
+        return res.status(500).json({ 
+            success: false,
+            message: 'Erreur serveur' 
+        });
     }
-
 };
 
 // client par ID

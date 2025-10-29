@@ -16,7 +16,7 @@ router.use(clerkMiddleware());
 
 router.get('/clients', getAllClients);
 router.get('/client/:id', getClientById);
-router.put('/client/:id', globalClientValidators,isRequestValidated, upload.single('imageUrl'), updateClient);
+router.put('/client/:id', globalClientValidators,isRequestValidated, updateClient);
 router.delete('/client/:id', deleteClient);
 
 export default router;

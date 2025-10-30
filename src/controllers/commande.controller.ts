@@ -193,15 +193,139 @@ export async function createCommande(req: Request, res: Response) {
     });
   }
 }
-export const getCommandes = async (_req: Request, res: Response) => {
+
+ 
+export const getCommandes = async (req: Request, res: Response) => {
   try {
-    const commandes = await prisma.commande.findMany({
-      include: { client: true, style : true, notifications : true},
-      orderBy: { dateCommande: "desc" },
+    const {
+      page = '1',
+      limit = '10',
+      status,
+      clientId,
+      assignedToId,
+      dateFrom,
+      dateTo,
+      search
+    } = req.query;
+
+    const pageNumber = Math.max(1, parseInt(page as string, 10));
+    const limitNumber = Math.max(1, parseInt(limit as string, 10));
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // ✅ Construction des filtres
+    const where: any = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (clientId) {
+      where.clientId = clientId;
+    }
+
+    if (assignedToId) {
+      where.assignedToId = assignedToId;
+    }
+
+    if (dateFrom || dateTo) {
+      where.dateCommande = {};
+      if (dateFrom) where.dateCommande.gte = new Date(dateFrom as string);
+      if (dateTo) where.dateCommande.lte = new Date(dateTo as string);
+    }
+
+    if (search) {
+      where.OR = [
+        { description: { contains: search as string, mode: 'insensitive' } },
+        { client: { firstName: { contains: search as string, mode: 'insensitive' } } },
+        { client: { lastName: { contains: search as string, mode: 'insensitive' } } },
+        { client: { telephone: { contains: search as string, mode: 'insensitive' } } },
+        { style: { model: { contains: search as string, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [commandes, total] = await Promise.all([
+      prisma.commande.findMany({
+        where,
+        skip,
+        take: limitNumber,
+        include: {
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              telephone: true,
+              adresse: true,
+              gender: true,
+            }
+          },
+          style: {
+            select: {
+              id: true,
+              model: true,
+            }
+          },
+          assignedTo: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          },
+          controleur: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            }
+          },
+          notifications: {
+            select: {
+              id: true,
+              message: true,
+              status: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
+          paiements: {
+            select: {
+              id: true,
+              montant: true,
+              modePaiement: true,
+              statut: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        orderBy: { dateCommande: 'desc' },
+      }),
+      prisma.commande.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / limitNumber);
+
+    res.json({
+      success: true,
+      data: commandes,
+      pagination: {
+        total,
+        page: pageNumber,
+        limit: limitNumber,
+        totalPages,
+        hasNextPage: pageNumber < totalPages,
+        hasPrevPage: pageNumber > 1,
+      },
     });
-    res.json(commandes);
   } catch (error) {
-    res.status(500).json({ message: "Erreur lors de la récupération des commandes" });
+    console.error('Erreur récupération commandes:', error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des commandes"
+    });
   }
 };
 
@@ -222,29 +346,107 @@ export const getCommandeById = async (req: Request, res: Response) => {
 
 export const updateCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { description, dateLivraisonPrevue, status, prix } = req.body;
+  const { description, dateLivraisonPrevue, status, prix, montantAvance } = req.body;
 
   try {
+    // ✅ Gestion des fichiers si présents
+    let imgCmd, audioFile;
+
+    if (req.files) {
+      const files = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
+      
+      for (const file of files) {
+        const uploadResult = await cloudinary.uploader.upload(file.path, {
+          folder: "Latif-commandes",
+          resource_type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+        });
+
+        if (file.fieldname === 'image') {
+          imgCmd = uploadResult.secure_url;
+        } else if (file.fieldname === 'audio') {
+          audioFile = uploadResult.secure_url;
+        }
+      }
+    }
+
+    const updateData: any = {
+      ...(description && { description }),
+      ...(dateLivraisonPrevue && { dateLivraisonPrevue: new Date(dateLivraisonPrevue) }),
+      ...(status && { status }),
+      ...(prix && { prix: Number(prix) }),
+      ...(montantAvance && { montantAvance: Number(montantAvance) }),
+      ...(imgCmd && { imgCmd }),
+      ...(audioFile && { audioFile }),
+    };
+
     const updated = await prisma.commande.update({
-      where: { id: id },
-      data: { description, dateLivraisonPrevue, status, prix },
-      include: { client: true},
+      where: { id },
+      data: updateData,
+      include: {
+        client: true,
+        style: true,
+        assignedTo: true,
+        notifications: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
+        paiements: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
-    res.json(updated);
+
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Commande mise à jour avec succès'
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Erreur lors de la mise à jour de la commande" });
+    console.error('Erreur mise à jour commande:', error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la mise à jour de la commande"
+    });
   }
 };
 
- export const deleteCommande = async (req: Request, res: Response) => {
+export const deleteCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    await prisma.commande.delete({ where: { id: id } });
-    res.json({ message: "Commande supprimée avec succès" });
+    // ✅ Suppression en cascade dans une transaction
+    await prisma.$transaction(async (tx) => {
+      // 1. Supprimer les notifications liées
+      await tx.notification.deleteMany({
+        where: { commandeId: id },
+      });
+
+      // 2. Supprimer les paiements liés
+      await tx.paiement.deleteMany({
+        where: { commandeId: id },
+      });
+
+      // 3. Supprimer les contrôles liés
+      await tx.controle.deleteMany({
+        where: { commandeId: id },
+      });
+
+      // 4. Finalement supprimer la commande
+      await tx.commande.delete({
+        where: { id },
+      });
+    });
+
+    res.json({
+      success: true,
+      message: "Commande et données associées supprimées avec succès"
+    });
   } catch (error) {
-    res.status(500).json({ message: "Erreur lors de la suppression de la commande" });
+    console.error('Erreur suppression commande:', error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la suppression de la commande"
+    });
   }
 };
 

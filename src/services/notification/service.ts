@@ -17,14 +17,8 @@ export async function createAndSendNotification({
 }) {
   try {
     console.log(`📨 Tentative d'envoi notification pour commande: ${commandeId}, destinataire: ${destinataireId}`);
-
-    // NE PAS créer une nouvelle notification en base ici
-    // La notification est déjà créée dans la transaction
-    
-    // Vérifier que le destinataire existe et a un token
     const destinataire = await prisma.user.findUnique({
-      where: { id: destinataireId },
-      select: { expoPushToken: true }
+      where: { id: destinataireId }
     });
 
     if (!destinataire) {
@@ -48,34 +42,6 @@ export async function createAndSendNotification({
       console.log(`📡 Socket émis à ${destinataireId}`);
     } catch (err) {
       console.warn("❌ Socket emit failed:", (err as Error).message);
-    }
-
-    // Push via Expo si le token existe
-    if (destinataire.expoPushToken && Expo.isExpoPushToken(destinataire.expoPushToken)) {
-      const messages = [
-        {
-          to: destinataire.expoPushToken,
-          sound: "default",
-          title: "Atelier - Nouvelle notification",
-          body: message,
-          data: { 
-            commandeId,
-            type: type
-          },
-        },
-      ];
-      
-      const chunks = expo.chunkPushNotifications(messages);
-      for (const chunk of chunks) {
-        try {
-          const tickets = await expo.sendPushNotificationsAsync(chunk);
-          console.log(`📱 Push notification envoyée:`, tickets);
-        } catch (e) {
-          console.error("❌ Expo push failed:", e);
-        }
-      }
-    } else {
-      console.log(`ℹ️  Pas de token Expo valide pour ${destinataireId}`);
     }
 
     return { success: true, message: "Notification envoyée" };

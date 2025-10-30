@@ -155,6 +155,153 @@ export const getUser = async (req: Request, res: Response): Promise<void> => {
 };
 
 // controllers/user.controller.ts
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const { firstName, lastName, email, role, disponibilite, img } = req.body;
+
+  try {
+    // ✅ Vérifier si l'utilisateur existe
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!existingUser) {
+      res.status(404).json({ 
+        success: false,
+        message: 'Utilisateur non trouvé' 
+      });
+      return;
+    }
+
+    // ✅ Mettre à jour l'utilisateur
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        ...(firstName && { firstName }),
+        ...(lastName && { lastName }),
+        ...(email && { email }),
+        ...(role && { role }),
+        ...(disponibilite !== undefined && { disponibilite }),
+        ...(img !== undefined && { img }),
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        img: true,
+        disponibilite: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: updatedUser,
+      message: 'Utilisateur mis à jour avec succès',
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Erreur lors de la mise à jour de l\'utilisateur' 
+    });
+  }
+};
+
+
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+
+  try {
+    console.log(`🗑️ Tentative de suppression de l'utilisateur: ${id}`);
+
+    // ✅ Vérifier si l'utilisateur existe
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            commandes: true,
+            commandesAssignees: true,
+            commandesControlees: true,
+            controles: true,
+          },
+        },
+      },
+    });
+
+    if (!existingUser) {
+      console.log(`❌ Utilisateur ${id} non trouvé`);
+      res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé',
+      });
+      return;
+    }
+
+    // ✅ Vérifier les dépendances avant suppression
+    const hasDependencies = 
+      existingUser._count.commandes > 0 ||
+      existingUser._count.commandesAssignees > 0 ||
+      existingUser._count.commandesControlees > 0 ||
+      existingUser._count.controles > 0;
+
+    if (hasDependencies) {
+      console.log(`⚠️ Utilisateur ${id} a des dépendances, suppression refusée`);
+      res.status(409).json({
+        success: false,
+        message: 'Impossible de supprimer cet utilisateur car il est associé à des commandes ou contrôles',
+        details: {
+          commandes: existingUser._count.commandes,
+          commandesAssignees: existingUser._count.commandesAssignees,
+          commandesControlees: existingUser._count.commandesControlees,
+          controles: existingUser._count.controles,
+        },
+      });
+      return;
+    }
+
+    // ✅ Supprimer l'utilisateur
+    const deletedUser = await prisma.user.delete({
+      where: { id },
+    });
+
+    console.log(`✅ Utilisateur ${id} supprimé avec succès`);
+
+    res.json({
+      success: true,
+      message: 'Utilisateur supprimé avec succès',
+      data: {
+        id: deletedUser.id,
+        email: deletedUser.email,
+        firstName: deletedUser.firstName,
+        lastName: deletedUser.lastName,
+      },
+    });
+
+  } catch (error: any) {
+    console.error('❌ Erreur suppression utilisateur:', error);
+
+    // ✅ Gestion des erreurs spécifiques Prisma
+    if (error.code === 'P2025') {
+      res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé',
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la suppression de l\'utilisateur',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+};
+
+// controllers/user.controller.ts
 export const getEmployeesAndControleurs = async (req: Request, res: Response): Promise<void> => {
   const { 
     disponibilite,

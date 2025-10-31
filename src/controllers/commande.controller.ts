@@ -346,11 +346,22 @@ export const getCommandeById = async (req: Request, res: Response) => {
 
 export const updateCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { description, dateLivraisonPrevue, status, prix, montantAvance } = req.body;
+
+   let bodyData = req.body;
+    
+    if (req.headers['content-type']?.includes('multipart/form-data')) {
+      if (typeof req.body.description === 'string') {
+        bodyData = {
+          ...req.body,
+        };
+      }
+    }
+
+  const { description, dateLivraisonPrevue, prix, montantAvance } = bodyData;
 
   try {
-    // ✅ Gestion des fichiers si présents
-    let imgCmd, audioFile;
+      let imgCmd: string | null = null;
+      let audioFile: string | null = null;
 
     if (req.files) {
       const files = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
@@ -361,9 +372,9 @@ export const updateCommande = async (req: Request, res: Response) => {
           resource_type: file.mimetype.startsWith('image/') ? 'image' : 'video',
         });
 
-        if (file.fieldname === 'image') {
+        if (file.fieldname === 'imgCmd') {
           imgCmd = uploadResult.secure_url;
-        } else if (file.fieldname === 'audio') {
+        } else if (file.fieldname === 'audioFile') {
           audioFile = uploadResult.secure_url;
         }
       }
@@ -372,7 +383,6 @@ export const updateCommande = async (req: Request, res: Response) => {
     const updateData: any = {
       ...(description && { description }),
       ...(dateLivraisonPrevue && { dateLivraisonPrevue: new Date(dateLivraisonPrevue) }),
-      ...(status && { status }),
       ...(prix && { prix: Number(prix) }),
       ...(montantAvance && { montantAvance: Number(montantAvance) }),
       ...(imgCmd && { imgCmd }),

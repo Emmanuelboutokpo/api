@@ -22,7 +22,10 @@ router.post("/commandes", requireAuth(),upload.fields([
 
 router.get("/commande", getCommandes);
 router.get("/commande/:id", getCommandeById);
-router.put("/commande/:id", updateCommande);
+router.put("/commande/:id",upload.fields([
+  { name: 'imgCmd', maxCount: 1 },
+  { name: 'audioFile', maxCount: 1 }
+]), updateCommande);
 router.delete("/commande/:id", deleteCommande);
 
 router.patch("/commandes/:id/confirm-preparation", confirmPreparation);

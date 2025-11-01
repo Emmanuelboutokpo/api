@@ -165,7 +165,7 @@ export async function createCommande(req: Request, res: Response) {
         data: {
           commandeId: commande.id,
           message: `Nouvelle commande #${commande.id} (Style: ${style.model}) assignée.`,
-          status: "ASSIGNATION",
+          status: "EN_ATTENTE",
           destinataireId: employe.id,
         },
       });
@@ -464,29 +464,73 @@ export const acceptCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
   const { userId } = getAuth(req as any);
 
+  // Validation des paramètres
+  if (!userId) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  if (!id) {
+    return res.status(400).json({ error: "Commande ID is required" });
+  }
+
   try {
-    if (!userId) return res.status(401).json({ error: "Not authenticated" });
-    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      // Vérifications et opérations en une seule transaction
+      const [user, commande, admin] = await Promise.all([
+        tx.user.findUnique({ where: { clerkId: userId } }),
+        tx.commande.findUnique({ where: { id } }),
+        tx.user.findFirst({ where: { role: "ADMIN" } })
+      ]);
 
-    if (!user) return res.status(403).json({ error: "User not found in DB" });
+      // Validations
+      if (!user) throw new Error("USER_NOT_FOUND");
+      if (!commande) throw new Error("COMMANDE_NOT_FOUND");
+      if (commande.assignedToId !== user.id) throw new Error("NOT_ALLOWED");
+      if (!admin) throw new Error("NO_ADMIN_AVAILABLE");
 
-    const commande = await prisma.commande.findUnique({ where: { id } });
-    if (!commande) return res.status(404).json({ error: "Commande not found" });
-    if (commande.assignedToId !== user.id) return res.status(403).json({ error: "Not allowed" });
-
-    const updated = await prisma.commande.update({ where: { id }, data: { status: "EN_COURS" }});
-
-    if (commande.userId) {
-      await createAndSendNotification({
-        commandeId: id,
-        message: `L'employé a accepté la commande ${id}`,
-        destinataireId: commande.userId ,
+      // Mise à jour de la commande
+      const updatedCommande = await tx.commande.update({
+        where: { id },
+        data: { status: "ASSIGNEE" }
       });
+
+      // Création de la notification
+      const notification = await tx.notification.create({
+        data: {
+          commandeId: commande.id,
+          message: `La commande ${id} a été assignée par un employé disponible, il viendra prendre les mesures !`,
+          status: "ASSIGNATION",
+          destinataireId: admin.id,
+        },
+      });
+
+      return { updatedCommande, notification, admin };
+    });
+
+    // Envoi de notification (hors transaction pour éviter les timeouts)
+    await createAndSendNotification({
+      commandeId: transactionResult.updatedCommande.id,
+      message: transactionResult.notification.message,
+      destinataireId: transactionResult.admin.id,
+    });
+
+    return res.json(transactionResult.updatedCommande);
+
+  } catch (error) {
+    console.error("Transaction failed:", error);
+    
+    const errorMap: Record<string, { status: number; message: string }> = {
+      "USER_NOT_FOUND": { status: 403, message: "User not found in DB" },
+      "COMMANDE_NOT_FOUND": { status: 404, message: "Commande not found" },
+      "NOT_ALLOWED": { status: 403, message: "Not allowed" },
+      "NO_ADMIN_AVAILABLE": { status: 404, message: "Aucun admin disponible" },
+    };
+
+    if (error instanceof Error && error.message in errorMap) {
+      const { status, message } = errorMap[error.message];
+      return res.status(status).json({ error: message });
     }
 
-    return res.json(updated);
-  } catch (err) {
-    console.error(err);
     return res.status(500).json({ error: "Server error" });
   }
 };
@@ -503,30 +547,34 @@ export const confirmPreparation = async (req: Request, res: Response) => {
 
     const commande = await prisma.commande.findUnique({ where: { id } });
     if (!commande) return res.status(404).json({ error: "Commande not found" });
-    if (commande.assignedToId !== user.id && user.role !== "ADMIN") return res.status(403).json({ error: "Not allowed" });
-
+ 
     const result = await prisma.$transaction(async (tx) => {
-      const c = await tx.commande.update({ where: { id }, data: { status: 'MESURE_ENREGISTREE' }});
+      const c = await tx.commande.update({ where: { id }, data: { status: 'EN_PRODUCTION' }});
+
+      const admin = await tx.user.findFirst({
+        where: { role: "ADMIN"},
+      });
+      if (!admin) throw new Error("Aucun admin disponible");
+
      
-      if (c.userId) {
-        await tx.notification.create({
+       
+        const notif = await tx.notification.create({
           data: {
-            commandeId: id,
-            message: `Préparation terminée par ${user.id} pour la commande ${id}`,
-            destinataireId: c.userId,
+            commandeId: c.id,
+            message: `Préparation terminée par ${user.firstName} pour la commande ${id}`,
+            status: "PRET",
+            destinataireId: admin.id,
           },
         });
-      }
-      return c;
+       
+      return {c, admin, notif};
     });
 
-    if (commande.userId) {
       await createAndSendNotification({
         commandeId: id,
-        message: `Préparation terminée pour la commande ${id}`,
-        destinataireId: commande.userId,
+        message: result.notif.message,
+        destinataireId: result.admin.id,
       });
-    }
 
     return res.json({ success: true, commande: result });
   } catch (err) {
@@ -547,33 +595,43 @@ export const markAsReadyForControl = async (req : Request, res : Response) => {
 
   const commande = await prisma.commande.findUnique({ where: { id } });
   if (!commande) return res.status(404).json({ error: "Commande introuvable" });
-  if (commande.assignedToId !== user.id)
-    return res.status(403).json({ error: "Vous n'êtes pas autorisé." });
+   
+ const result = await prisma.$transaction(async (tx) => {
+      const c = await tx.commande.update({ where: { id }, data: { status: 'EN_CONTROLE' }});
 
-  const updated = await prisma.commande.update({
-    where: { id },
-    data: { status: "EN_CONTROLE" },
-  });
+      const admin = await tx.user.findFirst({
+        where: { role: "ADMIN"},
+      });
+      if (!admin) throw new Error("Aucun admin disponible");
 
-  const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
-  if (admin) {
-    await createAndSendNotification({
-      commandeId: commande.id,
-      destinataireId: admin.id,
-      message: `Commande ${commande.id} prête pour le contrôle.`,
-      type: "VALIDATION",
+        const notif = await tx.notification.create({
+          data: {
+            commandeId: c.id,
+            message: `La commande ${id} veuillez controler !`,
+            status: "CONTROLE",
+            destinataireId: admin.id,
+          },
+        });
+       
+      return {c, admin, notif};
     });
-  }
-  res.json(updated);
-}
-catch (error) {
-    res.status(500).json({ message: "Erreur lors de la suppression de la commande" });
+
+      await createAndSendNotification({
+        commandeId: id,
+        message: result.notif.message,
+        destinataireId: result.admin.id,
+      });
+
+    return res.json({ success: true, commande: result });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
 
 export const assignControleur = async (req : Request, res : Response) => {
-  const { commandeId, controleurId } = req.body;
-    const { userId } = getAuth(req as any);
+  const { id } = req.params; 
+  const { userId } = getAuth(req as any);
 
   try {
     if (!userId) return res.status(401).json({ error: "Not authenticated" });
@@ -581,24 +639,39 @@ export const assignControleur = async (req : Request, res : Response) => {
 
     if (!user) return res.status(403).json({ error: "User not found in DB" });
 
-  if (user.role !== "ADMIN") return res.status(403).json({ error: "Accès refusé" });
+   const commande = await prisma.commande.findUnique({ where: { id } });
+  if (!commande) return res.status(404).json({ error: "Commande introuvable" });
+   
+ const result = await prisma.$transaction(async (tx) => {
+      const c = await tx.commande.update({ where: { id }, data: { status: 'EN_CONTROLE' }});
 
-  const commande = await prisma.commande.update({
-    where: { id: commandeId },
-    data: { controleurId },
-  });
+      const controler = await tx.user.findFirst({
+        where: { role: "CONTROLLEUR"},
+      });
 
-  await createAndSendNotification({
-    commandeId,
-    destinataireId: controleurId,
-    message: `Nouvelle commande à contrôler : ${commande.id}`,
-    type: "CONTROLE",
-  });
+      if (!controler) throw new Error("Aucun controlleur disponible");
 
-  res.json(commande);
-  }
-catch (error) {
-    res.status(500).json({ message: "Erreur lors de la suppression de la commande" });
+        const notif = await tx.notification.create({
+          data: {
+            commandeId: c.id,
+            message: `La commande ${id} est prête veuillez controler le respect strict des normes!`,
+            status: "CONTROLE",
+            destinataireId: controler.id,
+          },
+        });
+       
+      return {c, controler, notif};
+    });
+
+      await createAndSendNotification({
+        commandeId: id,
+        message: result.notif.message,
+        destinataireId: result.controler.id,
+      });
+
+    return res.json({ success: true, commande: result });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
   }
 };
-

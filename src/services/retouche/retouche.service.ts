@@ -32,11 +32,20 @@ export async function checkRetouchesNonConformes() {
         data: { status: "RETOUCHE" },
       });
 
+      const notif = await prisma.notification.create({
+          data: {
+            commandeId: cmd.id,
+            message: `Pénalité 10% pour retouche non effectuée dans les 24h.`,
+            status: "PENALITE",
+            destinataireId: cmd.assignedToId,
+          },
+        });
+
       // Notification employé
       await createAndSendNotification({
         commandeId: cmd.id,
         destinataireId: cmd.assignedToId!,
-        message: `Pénalité 10% pour retouche non effectuée dans les 24h.`,
+        message: notif.message,
         type: "PENALITE",
       });
 

@@ -28,10 +28,10 @@ router.put("/commande/:id",upload.fields([
 ]), updateCommande);
 router.delete("/commande/:id", deleteCommande);
 
-router.patch("/commandes/:id/confirm-preparation", confirmPreparation);
-router.patch("/commandes/:id/accept", acceptCommande);
+router.patch("/commandes/:id/confirm-preparation",requireAuth(), confirmPreparation);
+router.patch("/commandes/:id/accept",requireAuth(), acceptCommande);
 
-router.patch("/commandes/:id/control", markAsReadyForControl);
+router.patch("/commandes/:id/control",requireAuth(), markAsReadyForControl);
 router.patch("/commandes/:id/to-control", assignControleur);
 
 

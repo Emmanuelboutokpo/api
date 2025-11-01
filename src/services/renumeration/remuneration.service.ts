@@ -5,12 +5,14 @@ export const generateRemuneration = async (commandeId: string) => {
     where: { id: commandeId },
     include: { assignedTo: true, penalites: true },
   });
-  
-  if (!commande?.assignedToId || !commande.prix) return;
 
-  const penalites = commande.penalites.reduce((acc, p) => acc + p.montant, 0);
+  if (!commande) throw new Error("Commande introuvable");
+  if (!commande.assignedToId) throw new Error("Aucun employé assigné à la commande");
+  if (!commande.prix) throw new Error("Le prix de la commande est manquant");
+
+  const penalites = commande.penalites?.reduce((acc, p) => acc + p.montant, 0) ?? 0;
   const base = commande.prix * 0.4;
-  const montantFinal = base - penalites;
+  const montantFinal = Math.max(base - penalites, 0); // évite un montant négatif
 
   await prisma.remuneration.create({
     data: {
@@ -22,6 +24,7 @@ export const generateRemuneration = async (commandeId: string) => {
 
   return montantFinal;
 };
+
 
 export async function updateRemunerationAfterPenalite(commandeId: string, montantPenalite: number) {
   const remuneration = await prisma.remuneration.findFirst({ where: { commandeId } });

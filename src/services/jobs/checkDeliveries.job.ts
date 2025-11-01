@@ -21,11 +21,21 @@ export const startCheckDeliveriesJob = () => {
 
       // --- 🟡 RAPPELS DE LIVRAISON ---
       if ([2, 1, 0].includes(diff) && commande.assignedToId) {
+
+        const notif = await prisma.notification.create({
+          data: {
+            commandeId: commande.assignedToId,
+            message: `Rappel : Livraison de la commande ${commande.description} prévue dans ${diff} jour(s).`,
+            status: "RAPPEL_LIVRAISON",
+            destinataireId: commande.assignedToId,
+          },
+        });
+
         await createAndSendNotification({
           commandeId: commande.id,
           destinataireId: commande.assignedToId,
-          message: `Rappel : Livraison de la commande ${commande.description} prévue dans ${diff} jour(s).`,
-          type: "RAPPEL_LIVRAISON",
+          message: notif.message,
+           
         });
       }
 
@@ -48,12 +58,20 @@ export const startCheckDeliveriesJob = () => {
           data: { status: "RETARD" },
         });
 
+        const notif = await prisma.notification.create({
+          data: {
+            commandeId: commande.assignedToId,
+            message: `Une pénalité de 20% a été appliquée pour retard.`,
+            status: "PENALITE",
+            destinataireId: commande.assignedToId,
+          },
+        });
+
         // Notification
         await createAndSendNotification({
           commandeId: commande.id,
           destinataireId: commande.assignedToId,
-          message: `Une pénalité de 20% a été appliquée pour retard.`,
-          type: "PENALITE",
+          message: notif.message,
         });
       }
 

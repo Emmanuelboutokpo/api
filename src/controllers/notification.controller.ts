@@ -19,7 +19,7 @@ export const getNotifications = async (req: Request, res: Response) => {
     }
 
     const notifications = await prisma.notification.findMany({
-      where: { destinataireId: user.id },
+      where: { status: "EN_ATTENTE" },
       include: {
         commande: {
           include: {

@@ -4,7 +4,7 @@ import { effectuerControle } from "../controllers/controle.controller";
  
 const router: Router = Router();
 
-router.patch("/commandes/:id/confirm-preparation",requireAuth(), effectuerControle);
+router.patch("/commandes/:id/confirm-controle",requireAuth(), effectuerControle);
 
 
 export default router;

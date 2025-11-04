@@ -535,6 +535,45 @@ export const acceptCommande = async (req: Request, res: Response) => {
   }
 };
 
+export const getAssignedCommandes = async (req: Request, res: Response) => {
+  try {
+    const { userId } = getAuth(req as any);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Utilisateur non trouvé" });
+    }
+
+    const commandes = await prisma.commande.findMany({
+      where: {
+        assignedToId: user.id,
+        status: "ASSIGNEE",
+      },
+      include: {
+        client: true,
+        style: true,
+        mesures: true,
+        fournitures: true,
+        penalites: true,
+        assignedTo: true,
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    return res.status(200).json(commandes);
+  } catch (error: any) {
+    console.error("Erreur lors de la récupération des commandes assignées:", error);
+    return res.status(500).json({ error: "Erreur interne du serveur" });
+  }
+};
+
 export const confirmPreparation = async (req: Request, res: Response) => {
   const { id } = req.params; 
  const { userId } = getAuth(req as any);

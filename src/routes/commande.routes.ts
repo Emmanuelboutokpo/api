@@ -9,6 +9,7 @@ import {
   acceptCommande,
   markAsReadyForControl,
   assignControleur,
+  getAssignedCommandes,
 } from "../controllers/commande.controller";
 import { requireAuth } from "@clerk/express";
 import upload from "../middlewares/uploadMiddleware";
@@ -30,7 +31,7 @@ router.delete("/commande/:id", deleteCommande);
 
 router.patch("/commandes/:id/confirm-preparation",requireAuth(), confirmPreparation);
 router.patch("/commandes/:id/accept",requireAuth(), acceptCommande);
-
+router.get("/assigned", requireAuth(), getAssignedCommandes);
 router.patch("/commandes/:id/control",requireAuth(), markAsReadyForControl);
 router.patch("/commandes/:id/to-control", assignControleur);
 

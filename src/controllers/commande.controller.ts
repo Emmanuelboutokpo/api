@@ -485,7 +485,6 @@ export const acceptCommande = async (req: Request, res: Response) => {
       // Validations
       if (!user) throw new Error("USER_NOT_FOUND");
       if (!commande) throw new Error("COMMANDE_NOT_FOUND");
-      if (commande.assignedToId !== user.id) throw new Error("NOT_ALLOWED");
       if (!admin) throw new Error("NO_ADMIN_AVAILABLE");
 
       // Mise à jour de la commande

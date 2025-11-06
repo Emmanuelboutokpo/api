@@ -36,15 +36,6 @@ export const createMesureByOrder = async (req: Request, res: Response) => {
       include: { valeurs: { include: { mesureType: true } } },
     });
 
-    // Optionally notify admin that a new measure was added
-    if (commande.userId) {
-      await createAndSendNotification({
-        commandeId,
-        message: `Nouvelle mesure ajoutée sur la commande ${commandeId}`,
-        destinataireId: commande.userId,
-      });
-    }
-
     res.status(201).json({ success: true, data: measures });
   } catch (err) {
     console.error(err);
@@ -68,7 +59,14 @@ export const getMesuresByOrder = async (req: Request, res: Response) => {
       return res.status(403).json({ error: "Not allowed" });
     }
 
-    const mesures = await prisma.mesure.findMany({ where: { commandeId } });
+    const mesures = await prisma.mesure.findMany({
+  where: { commandeId },
+  include: {
+    valeurs: {
+      include: { mesureType: true },
+    },
+  },
+});
     return res.json(mesures);
   } catch (err) {
     console.error(err);

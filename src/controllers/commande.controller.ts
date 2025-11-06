@@ -545,7 +545,7 @@ export const getAssignedCommandes = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
     });
-
+     
     if (!user) {
       return res.status(404).json({ error: "Utilisateur non trouvé" });
     }
@@ -594,8 +594,6 @@ export const confirmPreparation = async (req: Request, res: Response) => {
       });
       if (!admin) throw new Error("Aucun admin disponible");
 
-     
-       
         const notif = await tx.notification.create({
           data: {
             commandeId: c.id,

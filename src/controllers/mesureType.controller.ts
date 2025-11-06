@@ -74,7 +74,7 @@ export const deleteMesureType = async (req: Request, res: Response, next: NextFu
   try {
     const { id } = req.params;
 
-    await prisma.mesure.delete({
+    await prisma.mesureType.delete({
       where: { id: id },
     });
 

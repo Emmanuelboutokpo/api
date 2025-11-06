@@ -9,6 +9,9 @@ import {
 
 const router = Router();
 
+router.post('/label-mesures', addMesureType);  
+router.get('/label-mesures', getMesureType);  
+router.get('/label-mesure/:id', getMesureTypeById);  
 router.patch('/label-mesure/:id', updateMesureType);  
 router.delete('/label-mesure/:id', deleteMesureType);  
 

@@ -5,7 +5,7 @@ import { createFourniture, deleteFourniture, getFournitures, updateFourniture } 
 
 const router: Router = Router();
 
-router.post("/:commandeId/fournitures", requireAuth(), createFourniture);
+router.post("/:commandeId/fournitures", createFourniture);
 router.get("/:commandeId/fournitures", getFournitures);
 router.patch("/fournitures/:id", updateFourniture);
 router.delete("/fournitures/:id", deleteFourniture);

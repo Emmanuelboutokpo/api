@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { getAuth } from "@clerk/express";
-import { createAndSendNotification } from "../services/notification/service";
-
 
 export const createFourniture = async (req: Request, res: Response) => {
   const { commandeId } = req.params;
@@ -31,7 +29,7 @@ export const getFournitures = async (req: Request, res: Response) => {
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
       const user = await prisma.user.findUnique({ where: { clerkId: userId } });
     
-        if (!user) return res.status(403).json({ error: "User not found in DB" });
+    if (!user) return res.status(403).json({ error: "User not found in DB" });
     const commande = await prisma.commande.findUnique({ where: { id: commandeId } });
     if (!commande) return res.status(404).json({ error: "Commande not found" });
 

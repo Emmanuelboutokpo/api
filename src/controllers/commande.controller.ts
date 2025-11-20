@@ -4,14 +4,16 @@ import { cloudinary } from "../lib/cloudinary";
 import { getAuth } from "@clerk/express";
 import { createAndSendNotification } from "../services/notification/service";
 import { validationResult } from "express-validator";
+import { ImageType } from "@prisma/client";
 
-export async function createCommande(req: Request, res: Response) {
+ export async function createCommande(req: Request, res: Response) {
   try {
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(422).json({ success: false, errors: errors.array() });
     }
+
     let bodyData = req.body;
     
     if (req.headers['content-type']?.includes('multipart/form-data')) {
@@ -33,7 +35,7 @@ export async function createCommande(req: Request, res: Response) {
       styleId,
       description,
       prix,
-    } = bodyData; // ✅ Utiliser bodyData au lieu de req.body
+    } = bodyData; 
 
     const { userId } = getAuth(req as any);
     if (!userId) return res.status(401).json({ error: "no clerk session" });
@@ -41,7 +43,6 @@ export async function createCommande(req: Request, res: Response) {
     const user = await prisma.user.findUnique({ where: { clerkId: userId } });
     if (!user) return res.status(403).json({ error: "user not found in DB" });
 
-    // ✅ Convertir les montants en nombres
     const prixNum = Number(prix);
     const montantAvanceNum = Number(montantAvance || 0);
 
@@ -52,37 +53,76 @@ export async function createCommande(req: Request, res: Response) {
       });
     }
 
-    let imgCmd: string | null = null;
     let audioFile: string | null = null;
+    const modelImages: string[] = [];
+    const tissuImages: string[] = [];
 
-    // ✅ Upload image
-    if (req.file) {
-      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-        folder: "Latif-client",
-        resource_type: "auto",
-        timeout: 60000,
-      });
-      imgCmd = uploadResult.secure_url;
-    }
-
-    // ✅ Gérer plusieurs fichiers si nécessaire
     if (req.files) {
-      const files = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       
-      for (const file of files) {
-        const uploadResult = await cloudinary.uploader.upload(file.path, {
-          folder: "Latif-client",
-          resource_type: file.mimetype.startsWith('image/') ? 'image' : 'video',
-          timeout: 60000,
-        });
-
-        if (file.fieldname === 'imgCmd') {
-          imgCmd = uploadResult.secure_url;
-        } else if (file.fieldname === 'audioFile') {
-          audioFile = uploadResult.secure_url;
+      // Upload des images modèles
+      if (files.modelImages) {
+        for (const file of files.modelImages) {
+          const uploadResult = await cloudinary.uploader.upload(file.path, {
+            folder: "Latif-client/models",
+            resource_type: "image",
+            timeout: 60000,
+          });
+          modelImages.push(uploadResult.secure_url);
         }
       }
+      
+      // Upload des images tissus
+      if (files.tissuImages) {
+        for (const file of files.tissuImages) {
+          const uploadResult = await cloudinary.uploader.upload(file.path, {
+            folder: "Latif-client/tissus",
+            resource_type: "image",
+            timeout: 60000,
+          });
+          tissuImages.push(uploadResult.secure_url);
+        }
+      }
+      
+      // Upload du fichier audio
+      if (files.audioFile && files.audioFile[0]) {
+        const audioUpload = await cloudinary.uploader.upload(files.audioFile[0].path, {
+          folder: "Latif-client/audio",
+          resource_type: "video", // Cloudinary traite l'audio comme "video"
+          timeout: 60000,
+        });
+        audioFile = audioUpload.secure_url;
+      }
     }
+
+    // ✅ Upload image
+    // if (req.file) {
+    //   const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+    //     folder: "Latif-client",
+    //     resource_type: "auto",
+    //     timeout: 60000,
+    //   });
+    //   imgCmd = uploadResult.secure_url;
+    // }
+
+    // // ✅ Gérer plusieurs fichiers si nécessaire
+    // if (req.files) {
+    //   const files = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
+      
+    //   for (const file of files) {
+    //     const uploadResult = await cloudinary.uploader.upload(file.path, {
+    //       folder: "Latif-client",
+    //       resource_type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+    //       timeout: 60000,
+    //     });
+
+    //     if (file.fieldname === 'imgCmd') {
+    //       imgCmd = uploadResult.secure_url;
+    //     } else if (file.fieldname === 'audioFile') {
+    //       audioFile = uploadResult.secure_url;
+    //     }
+    //   }
+    // }
 
     const result = await prisma.$transaction(async (tx) => {
       // 🧍 CLIENT
@@ -113,7 +153,15 @@ export async function createCommande(req: Request, res: Response) {
         if (!stylePayload) throw new Error("Style manquant");
         try {
           style = await tx.style.create({
-            data: { model: stylePayload.model },
+            data: { 
+              model: stylePayload.model,
+              images: stylePayload.images ? {
+                create: stylePayload.images.map((img: string) => ({
+                  type: 'MODEL',
+                  url: img
+                }))
+              } : undefined 
+            },
           });
         } catch (error: any) {
           if (error.code === "P2002") {
@@ -141,10 +189,26 @@ export async function createCommande(req: Request, res: Response) {
           dateLivraisonPrevue: new Date(dateLivraisonPrevue),
           clientId: client.id,
           styleId: style.id,
-          imgCmd,
           audioFile,
           assignedToId: employe.id,
+          images: {
+            create: [
+              ...modelImages.map(url => ({
+                type: ImageType.MODEL,
+                url
+              })),
+              ...tissuImages.map(url => ({
+                type: ImageType.MODEL,
+                url
+              }))
+            ]
+          }
         },
+        include: {
+          images: true,
+          client: true,
+          style: true
+        }
       });
 
       // 💰 Paiement initial
@@ -203,6 +267,7 @@ export const getCommandes = async (req: Request, res: Response) => {
       status,
       clientId,
       assignedToId,
+      controleurId,
       dateFrom,
       dateTo,
       search
@@ -227,6 +292,10 @@ export const getCommandes = async (req: Request, res: Response) => {
       where.assignedToId = assignedToId;
     }
 
+    if (controleurId) {
+      where.controleurId = controleurId;
+    }
+
     if (dateFrom || dateTo) {
       where.dateCommande = {};
       if (dateFrom) where.dateCommande.gte = new Date(dateFrom as string);
@@ -236,10 +305,24 @@ export const getCommandes = async (req: Request, res: Response) => {
     if (search) {
       where.OR = [
         { description: { contains: search as string, mode: 'insensitive' } },
-        { client: { firstName: { contains: search as string, mode: 'insensitive' } } },
-        { client: { lastName: { contains: search as string, mode: 'insensitive' } } },
-        { client: { telephone: { contains: search as string, mode: 'insensitive' } } },
+        { 
+          client: {
+            OR: [
+              { firstName: { contains: search as string, mode: 'insensitive' } },
+              { lastName: { contains: search as string, mode: 'insensitive' } },
+              { telephone: { contains: search as string, mode: 'insensitive' } }
+            ]
+          }
+        },
         { style: { model: { contains: search as string, mode: 'insensitive' } } },
+        // Recherche dans les fournitures
+        {
+          fournitures: {
+            some: {
+              designation: { contains: search as string, mode: 'insensitive' }
+            }
+          }
+        }
       ];
     }
 
@@ -249,6 +332,16 @@ export const getCommandes = async (req: Request, res: Response) => {
         skip,
         take: limitNumber,
         include: {
+          // ✅ INCLURE LES IMAGES
+          images: {
+            select: {
+              id: true,
+              type: true,
+              url: true,
+              createdAt: true
+            },
+            orderBy: { createdAt: 'desc' }
+          },
           client: {
             select: {
               id: true,
@@ -257,12 +350,20 @@ export const getCommandes = async (req: Request, res: Response) => {
               telephone: true,
               adresse: true,
               gender: true,
+              imageUrl: true,
             }
           },
           style: {
             select: {
               id: true,
               model: true,
+              images: {
+                select: {
+                  id: true,
+                  type: true,
+                  url: true
+                }
+              }
             }
           },
           assignedTo: {
@@ -271,6 +372,7 @@ export const getCommandes = async (req: Request, res: Response) => {
               firstName: true,
               lastName: true,
               email: true,
+              img: true,
             }
           },
           controleur: {
@@ -278,7 +380,34 @@ export const getCommandes = async (req: Request, res: Response) => {
               id: true,
               firstName: true,
               lastName: true,
+              email: true,
             }
+          },
+          // ✅ INCLURE LES MESURES AVEC VALEURS
+          mesures: {
+            include: {
+              valeurs: {
+                include: {
+                  mesureType: {
+                    select: {
+                      id: true,
+                      label: true,
+                      unit: true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          // ✅ INCLURE LES FOURNITURES
+          fournitures: {
+            select: {
+              id: true,
+              designation: true,
+              quantite: true,
+              createdAt: true
+            },
+            orderBy: { createdAt: 'desc' }
           },
           notifications: {
             select: {
@@ -300,6 +429,42 @@ export const getCommandes = async (req: Request, res: Response) => {
             },
             orderBy: { createdAt: 'desc' },
           },
+          // ✅ INCLURE LES CONTRÔLES
+          controles: {
+            select: {
+              id: true,
+              dateControle: true,
+              conforme: true,
+              remarques: true,
+              controleur: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true
+                }
+              }
+            },
+            orderBy: { dateControle: 'desc' },
+            take: 1, // Dernier contrôle seulement
+          },
+          // ✅ INCLURE LES RÉMUNÉRATIONS ET PÉNALITÉS
+          remunerations: {
+            select: {
+              id: true,
+              montant: true,
+              statut: true,
+              date: true
+            }
+          },
+          penalites: {
+            select: {
+              id: true,
+              type: true,
+              montant: true,
+              raison: true,
+              datePenalite: true
+            }
+          }
         },
         orderBy: { dateCommande: 'desc' },
       }),
@@ -334,76 +499,402 @@ export const getCommandeById = async (req: Request, res: Response) => {
   try {
     const commande = await prisma.commande.findUnique({
       where: { id: id },
-      include: { client: true, style : true,  notifications: true },
+      include: {
+        // ✅ IMAGES DE LA COMMANDE
+        images: {
+          select: {
+            id: true,
+            type: true,
+            url: true,
+            createdAt: true
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        
+        // ✅ CLIENT
+        client: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            telephone: true,
+            adresse: true,
+            gender: true,
+            imageUrl: true,
+            createdAt: true,
+          }
+        },
+        
+        // ✅ STYLE AVEC IMAGES
+        style: {
+          select: {
+            id: true,
+            model: true,
+            images: {
+              select: {
+                id: true,
+                type: true,
+                url: true,
+                createdAt: true
+              }
+            }
+          }
+        },
+        
+        // ✅ UTILISATEUR CRÉATEUR
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            img: true,
+            role: true,
+          }
+        },
+        
+        // ✅ EMPLOYÉ ASSIGNÉ
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            img: true,
+            role: true,
+            disponibilite: true,
+          }
+        },
+        
+        // ✅ CONTRÔLEUR
+        controleur: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            img: true,
+            role: true,
+          }
+        },
+        
+        // ✅ NOTIFICATIONS
+        notifications: {
+          select: {
+            id: true,
+            message: true,
+            status: true,
+            dateNotification: true,
+            createdAt: true,
+            destinataire: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        
+        // ✅ FOURNITURES
+        fournitures: {
+          select: {
+            id: true,
+            designation: true,
+            quantite: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        
+        // ✅ MESURES COMPLÈTES
+        mesures: {
+          include: {
+            valeurs: {
+              include: {
+                mesureType: {
+                  select: {
+                    id: true,
+                    label: true,
+                    unit: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        
+        // ✅ PAIEMENTS
+        paiements: {
+          select: {
+            id: true,
+            montant: true,
+            modePaiement: true,
+            statut: true,
+            datePaiement: true,
+            description: true,
+            createdAt: true,
+            processedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        
+        // ✅ CONTRÔLES
+        controles: {
+          select: {
+            id: true,
+            dateControle: true,
+            conforme: true,
+            remarques: true,
+            createdAt: true,
+            controleur: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              }
+            }
+          },
+          orderBy: { dateControle: 'desc' }
+        },
+        
+        // ✅ RÉMUNÉRATIONS
+        remunerations: {
+          select: {
+            id: true,
+            montant: true,
+            date: true,
+            statut: true,
+            createdAt: true,
+            employe: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        },
+        
+        // ✅ PÉNALITÉS
+        penalites: {
+          select: {
+            id: true,
+            type: true,
+            montant: true,
+            raison: true,
+            datePenalite: true,
+            createdAt: true,
+            employe: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      },
     });
 
-    if (!commande) return res.status(404).json({ message: "Commande non trouvée" });
-    res.json(commande);
+    if (!commande) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Commande non trouvée" 
+      });
+    }
+
+    res.json({
+      success: true,
+      data: commande
+    });
+    
   } catch (error) {
-    res.status(500).json({ message: "Erreur lors de la récupération de la commande" });
+    console.error('Erreur récupération commande:', error);
+    res.status(500).json({ 
+      success: false,
+      message: "Erreur lors de la récupération de la commande" 
+    });
   }
 };
 
 export const updateCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
 
-   let bodyData = req.body;
-    
-    if (req.headers['content-type']?.includes('multipart/form-data')) {
-      if (typeof req.body.description === 'string') {
-        bodyData = {
-          ...req.body,
-        };
-      }
+  let bodyData = req.body;
+  
+  if (req.headers['content-type']?.includes('multipart/form-data')) {
+    if (typeof req.body.description === 'string') {
+      bodyData = {
+        ...req.body,
+      };
     }
+  }
 
-  const { description, dateLivraisonPrevue, prix, montantAvance } = bodyData;
+  const { 
+    description, 
+    dateLivraisonPrevue, 
+    prix, 
+    montantAvance,
+    status,
+    assignedToId,
+    controleurId
+  } = bodyData;
 
   try {
-      let imgCmd: string | null = null;
-      let audioFile: string | null = null;
+    const modelImages: { type: ImageType; url: string }[] = [];
+    const tissuImages: { type: ImageType; url: string }[] = [];
+    let audioFile: string | null = null;
 
+    // ✅ Gérer l'upload des fichiers multiples
     if (req.files) {
-      const files = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       
-      for (const file of files) {
-        const uploadResult = await cloudinary.uploader.upload(file.path, {
-          folder: "Latif-commandes",
-          resource_type: file.mimetype.startsWith('image/') ? 'image' : 'video',
-        });
-
-        if (file.fieldname === 'imgCmd') {
-          imgCmd = uploadResult.secure_url;
-        } else if (file.fieldname === 'audioFile') {
-          audioFile = uploadResult.secure_url;
+      // Upload des nouvelles images modèles
+      if (files.modelImages) {
+        for (const file of files.modelImages) {
+          const uploadResult = await cloudinary.uploader.upload(file.path, {
+            folder: "Latif-commandes/models",
+            resource_type: "image",
+            timeout: 60000,
+          });
+          modelImages.push({
+            type: ImageType.MODEL,
+            url: uploadResult.secure_url
+          });
         }
+      }
+      
+      // Upload des nouvelles images tissus
+      if (files.tissuImages) {
+        for (const file of files.tissuImages) {
+          const uploadResult = await cloudinary.uploader.upload(file.path, {
+            folder: "Latif-commandes/tissus",
+            resource_type: "image",
+            timeout: 60000,
+          });
+          tissuImages.push({
+            type: ImageType.TISSU,
+            url: uploadResult.secure_url
+          });
+        }
+      }
+      
+      // Upload du nouveau fichier audio
+      if (files.audioFile && files.audioFile[0]) {
+        const audioUpload = await cloudinary.uploader.upload(files.audioFile[0].path, {
+          folder: "Latif-commandes/audio",
+          resource_type: "video",
+          timeout: 60000,
+        });
+        audioFile = audioUpload.secure_url;
       }
     }
 
-    const updateData: any = {
-      ...(description && { description }),
-      ...(dateLivraisonPrevue && { dateLivraisonPrevue: new Date(dateLivraisonPrevue) }),
-      ...(prix && { prix: Number(prix) }),
-      ...(montantAvance && { montantAvance: Number(montantAvance) }),
-      ...(imgCmd && { imgCmd }),
-      ...(audioFile && { audioFile }),
-    };
+    const updated = await prisma.$transaction(async (tx) => {
+      // ✅ Préparer les données de mise à jour
+      const updateData: any = {
+        ...(description && { description }),
+        ...(dateLivraisonPrevue && { dateLivraisonPrevue: new Date(dateLivraisonPrevue) }),
+        ...(prix && { prix: Number(prix) }),
+        ...(montantAvance !== undefined && { montantAvance: Number(montantAvance) }),
+        ...(status && { status }),
+        ...(assignedToId && { assignedToId }),
+        ...(controleurId && { controleurId }),
+        ...(audioFile && { audioFile }),
+        updatedAt: new Date(),
+      };
 
-    const updated = await prisma.commande.update({
-      where: { id },
-      data: updateData,
-      include: {
-        client: true,
-        style: true,
-        assignedTo: true,
-        notifications: {
-          orderBy: { createdAt: 'desc' },
-          take: 5,
+      // ✅ Ajouter les nouvelles images
+      const newImages = [...modelImages, ...tissuImages];
+      if (newImages.length > 0) {
+        updateData.images = {
+          create: newImages
+        };
+      }
+
+      // ✅ Mettre à jour la commande
+      const updatedCommande = await tx.commande.update({
+        where: { id },
+        data: updateData,
+        include: {
+          // ✅ INCLURE LES RELATIONS IMPORTANTES
+          images: {
+            select: {
+              id: true,
+              type: true,
+              url: true,
+              createdAt: true
+            },
+            orderBy: { createdAt: 'desc' }
+          },
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              telephone: true,
+              adresse: true,
+              gender: true,
+            }
+          },
+          style: {
+            select: {
+              id: true,
+              model: true,
+            }
+          },
+          assignedTo: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          },
+          controleur: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          },
+          notifications: {
+            select: {
+              id: true,
+              message: true,
+              status: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
+          paiements: {
+            select: {
+              id: true,
+              montant: true,
+              modePaiement: true,
+              statut: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          },
         },
-        paiements: {
-          orderBy: { createdAt: 'desc' },
-        },
-      },
+      });
+
+      return updatedCommande;
     });
 
     res.json({

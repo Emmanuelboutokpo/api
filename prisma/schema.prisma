@@ -1,5 +1,3 @@
-// Prisma schema - version révisée
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -51,9 +49,29 @@ model Client {
   styles        Style[]        @relation("ClientStyles")
 }
 
+model CommandeImage {
+  id         String      @id @default(uuid())
+  type       ImageType   // MODEL ou TISSU
+  url        String
+  commande   Commande    @relation(fields: [commandeId], references: [id])
+  commandeId String
+  createdAt  DateTime    @default(now())
+}
+
+model StyleImage {
+  id       String    @id @default(uuid())
+  type     ImageType // MODEL ou TISSU
+  url      String
+  style    Style     @relation(fields: [styleId], references: [id])
+  styleId  String
+  createdAt DateTime @default(now())
+}
+
 model Style {
   id        String        @id @default(uuid())
   model     String     @unique
+
+  images    StyleImage[] 
   
   clients   Client[]   @relation("ClientStyles")
   commandes Commande[]
@@ -98,7 +116,7 @@ model Commande {
   status              CommandeStatus @default(EN_COURS)
   prix                Float?
   montantAvance       Float?
-  imgCmd              String?
+   
   audioFile           String?
 
   client              Client         @relation(fields: [clientId], references: [id])
@@ -115,6 +133,8 @@ model Commande {
 
   assignedToId String?    // employé assigné
   assignedTo   User?      @relation("CommandeAssignedTo", fields: [assignedToId], references: [id])
+
+  images              CommandeImage[]
 
   notifications       Notification[]
   fournitures         Fourniture[]
@@ -241,6 +261,11 @@ enum PaiementStatut {
   VALIDE
   ECHEC
   REMBOURSE
+}
+
+enum ImageType {
+  MODEL
+  TISSU
 }
 
 enum UserRole {

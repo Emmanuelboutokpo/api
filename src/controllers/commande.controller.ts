@@ -95,35 +95,6 @@ import { ImageType } from "@prisma/client";
       }
     }
 
-    // ✅ Upload image
-    // if (req.file) {
-    //   const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-    //     folder: "Latif-client",
-    //     resource_type: "auto",
-    //     timeout: 60000,
-    //   });
-    //   imgCmd = uploadResult.secure_url;
-    // }
-
-    // // ✅ Gérer plusieurs fichiers si nécessaire
-    // if (req.files) {
-    //   const files = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
-      
-    //   for (const file of files) {
-    //     const uploadResult = await cloudinary.uploader.upload(file.path, {
-    //       folder: "Latif-client",
-    //       resource_type: file.mimetype.startsWith('image/') ? 'image' : 'video',
-    //       timeout: 60000,
-    //     });
-
-    //     if (file.fieldname === 'imgCmd') {
-    //       imgCmd = uploadResult.secure_url;
-    //     } else if (file.fieldname === 'audioFile') {
-    //       audioFile = uploadResult.secure_url;
-    //     }
-    //   }
-    // }
-
     const result = await prisma.$transaction(async (tx) => {
       // 🧍 CLIENT
       let client;
@@ -198,7 +169,7 @@ import { ImageType } from "@prisma/client";
                 url
               })),
               ...tissuImages.map(url => ({
-                type: ImageType.MODEL,
+                type: ImageType.TISSU,
                 url
               }))
             ]

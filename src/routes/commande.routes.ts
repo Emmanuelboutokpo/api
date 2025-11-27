@@ -24,6 +24,7 @@ router.post("/commandes", requireAuth(), upload.fields([
 
 router.get("/commande", getCommandes);
 router.get("/commande/:id", getCommandeById);
+router.get("/assigned", requireAuth(), getAssignedCommandes);
 
 router.put("/commande/:id", upload.fields([
   { name: 'modelImages', maxCount: 10 },
@@ -35,7 +36,6 @@ router.delete("/commande/:id", deleteCommande);
 
 router.patch("/commandes/:id/confirm-preparation",requireAuth(), confirmPreparation);
 router.patch("/commandes/:id/accept",requireAuth(), acceptCommande);
-router.get("/assigned", requireAuth(), getAssignedCommandes);
 router.patch("/commandes/:id/control",requireAuth(), markAsReadyForControl);
 router.patch("/commandes/:id/to-control", assignControleur);
 

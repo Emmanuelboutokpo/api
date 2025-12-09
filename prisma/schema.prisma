@@ -53,7 +53,7 @@ model CommandeImage {
   id         String      @id @default(uuid())
   type       ImageType   // MODEL ou TISSU
   url        String
-  commande   Commande    @relation(fields: [commandeId], references: [id])
+  commande   Commande     @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId String
   createdAt  DateTime    @default(now())
 }
@@ -92,7 +92,7 @@ model Mesure {
   client     Client            @relation(fields: [clientId], references: [id])
   clientId   String
 
-  commande   Commande       @relation(fields: [commandeId], references: [id])
+  commande   Commande        @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId String
 
   valeurs    MesureValeur[]
@@ -155,7 +155,7 @@ model Fourniture {
   designation  String
   quantite     Int
 
-  commande     Commande @relation(fields: [commandeId], references: [id])
+  commande     Commande  @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId   String
 
   createdAt    DateTime @default(now())
@@ -168,7 +168,7 @@ model Controle {
   conforme      Boolean   @default(true)
   remarques     String
 
-  commande      Commande @relation(fields: [commandeId], references: [id])
+   commande      Commande     @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId    String
 
   controleur    User     @relation(fields: [controleurId], references: [id])
@@ -187,7 +187,7 @@ model Penalite {
 
   employe      User          @relation(fields: [employeId], references: [id])
   employeId    String
-  commande     Commande      @relation(fields: [commandeId], references: [id])
+  commande     Commande       @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId   String
 
   createdAt    DateTime      @default(now())
@@ -201,7 +201,7 @@ model Remuneration {
 
   employe      User          @relation(fields: [employeId], references: [id])
   employeId    String
-  commande     Commande      @relation(fields: [commandeId], references: [id])
+  commande     Commande       @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId   String
 
   createdAt    DateTime      @default(now())
@@ -216,7 +216,7 @@ model Notification {
   dateNotification DateTime    @default(now())
   status           NotifStatus @default(EN_ATTENTE)
 
-  commande         Commande    @relation(fields: [commandeId], references: [id])
+  commande         Commande     @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   destinataire     User?       @relation("NotificationDestinataire", fields: [destinataireId], references: [id])
   destinataireId   String?
 
@@ -234,7 +234,7 @@ model Paiement {
   description    String?
 
   // Relation avec la commande
-  commande       Commande      @relation(fields: [commandeId], references: [id])
+  commande       Commande      @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId     String
 
   // Relation avec le client (facultatif)

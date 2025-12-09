@@ -886,35 +886,18 @@ export const deleteCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    // ✅ Suppression en cascade dans une transaction
-    await prisma.$transaction(async (tx) => {
-      // 1. Supprimer les notifications liées
-      await tx.notification.deleteMany({
-        where: { commandeId: id },
-      });
-
-      // 2. Supprimer les paiements liés
-      await tx.paiement.deleteMany({
-        where: { commandeId: id },
-      });
-
-      // 3. Supprimer les contrôles liés
-      await tx.controle.deleteMany({
-        where: { commandeId: id },
-      });
-
-      // 4. Finalement supprimer la commande
-      await tx.commande.delete({
-        where: { id },
-      });
+    // ✅ Simple suppression, les relations sont supprimées automatiquement
+    await prisma.commande.delete({
+      where: { id },
     });
 
     res.json({
       success: true,
-      message: "Commande et données associées supprimées avec succès"
+      message: "Commande supprimée avec succès"
     });
   } catch (error) {
     console.error('Erreur suppression commande:', error);
+    
     res.status(500).json({
       success: false,
       message: "Erreur lors de la suppression de la commande"

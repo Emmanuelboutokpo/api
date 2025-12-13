@@ -8,7 +8,7 @@ import {
 import upload from '../middlewares/uploadMiddleware';
 import { globalClientValidators, isRequestValidated } from '../validator/clientValidators';
 import { clerkMiddleware } from '@clerk/express';
-import { requireAdmin } from '../middlewares/requireAdmin';
+import { requireAdmin } from '../middlewares/requireSignin';
  
 const router: Router = Router();
 

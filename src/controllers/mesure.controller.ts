@@ -1,122 +1,122 @@
-import { Request, Response, NextFunction } from 'express';
-import prisma from '../lib/prisma';
-import { getAuth } from '@clerk/express';
+// import { Request, Response, NextFunction } from 'express';
+// import prisma from '../lib/prisma';
+// import { getAuth } from '@clerk/express';
 
-export const createMesureByOrder = async (req: Request, res: Response) => {
-  try {
-    const { commandeId } = req.params;
-    const {clientId, valeurs } = req.body;
+// export const createMesureByOrder = async (req: Request, res: Response) => {
+//   try {
+//     const { commandeId } = req.params;
+//     const {clientId, valeurs } = req.body;
  
-    const commande = await prisma.commande.findUnique({ where: { id: commandeId } });
-    if (!commande) return res.status(404).json({ error: "Commande not found" });
+//     const commande = await prisma.commande.findUnique({ where: { id: commandeId } });
+//     if (!commande) return res.status(404).json({ error: "Commande not found" });
 
-     const measures = await prisma.mesure.create({
-      data: {
-        commandeId,
-        clientId,
-        valeurs: {
-          create: valeurs.map((v:any) => ({
-            mesureTypeId: v.mesureTypeId,
-            valeur: v.valeur,
-          })),
-        },
-      },
-      include: { valeurs: { include: { mesureType: true } } },
-    });
+//      const measures = await prisma.mesure.create({
+//       data: {
+//         commandeId,
+//         clientId,
+//         valeurs: {
+//           create: valeurs.map((v:any) => ({
+//             mesureTypeId: v.mesureTypeId,
+//             valeur: v.valeur,
+//           })),
+//         },
+//       },
+//       include: { valeurs: { include: { mesureType: true } } },
+//     });
 
-    res.status(201).json({ success: true, data: measures });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-};
+//     res.status(201).json({ success: true, data: measures });
+//   } catch (err) {
+//     console.error(err);
+//     return res.status(500).json({ error: "Server error" });
+//   }
+// };
 
-export const getMesuresByOrder = async (req: Request, res: Response) => {
-  const { commandeId } = req.params;
-  try {
+// export const getMesuresByOrder = async (req: Request, res: Response) => {
+//   const { commandeId } = req.params;
+//   try {
   
-    const commande = await prisma.commande.findUnique({ where: { id: commandeId } });
-    if (!commande) return res.status(404).json({ error: "Commande not found" });
+//     const commande = await prisma.commande.findUnique({ where: { id: commandeId } });
+//     if (!commande) return res.status(404).json({ error: "Commande not found" });
 
-  const mesures = await prisma.mesure.findMany({
-  where: { commandeId },
-  include: {
-    valeurs: {
-      include: { mesureType: true },
-    },
-  },
-});
-    return res.json(mesures);
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-};
+//   const mesures = await prisma.mesure.findMany({
+//   where: { commandeId },
+//   include: {
+//     valeurs: {
+//       include: { mesureType: true },
+//     },
+//   },
+// });
+//     return res.json(mesures);
+//   } catch (err) {
+//     console.error(err);
+//     return res.status(500).json({ error: "Server error" });
+//   }
+// };
 
-export const updateMesureByOrder = async (req: Request, res: Response) => {
-   const { id } = req.params;
+// export const updateMesureByOrder = async (req: Request, res: Response) => {
+//    const { id } = req.params;
 
-   const { valeurs } = req.body;
+//    const { valeurs } = req.body;
 
-  try {
+//   try {
     
-    if (!valeurs || !Array.isArray(valeurs) || valeurs.length === 0) {
-      return res.status(400).json({ success: false, message: "valeurs est requis et doit être un tableau" });
-    }
+//     if (!valeurs || !Array.isArray(valeurs) || valeurs.length === 0) {
+//       return res.status(400).json({ success: false, message: "valeurs est requis et doit être un tableau" });
+//     }
 
     
-    const mesureExists = await prisma.mesure.findUnique({ where: { id: id } });
-    if (!mesureExists) {
-      return res.status(404).json({ success: false, message: "Mesure non trouvée" });
-    }
+//     const mesureExists = await prisma.mesure.findUnique({ where: { id: id } });
+//     if (!mesureExists) {
+//       return res.status(404).json({ success: false, message: "Mesure non trouvée" });
+//     }
 
-    const commande = await prisma.commande.findUnique({ where: { id: mesureExists.commandeId } });
-   if (!commande) return res.status(404).json({ error: "Commande not found" });
+//     const commande = await prisma.commande.findUnique({ where: { id: mesureExists.commandeId } });
+//    if (!commande) return res.status(404).json({ error: "Commande not found" });
 
-    await Promise.all(
-      valeurs.map(async (v) => {
-        if (!v.id) return; 
-        await prisma.mesureValeur.update({
-          where: { id: v.id },
-          data: { valeur: v.valeur },
-        });
-      })
-    );
+//     await Promise.all(
+//       valeurs.map(async (v) => {
+//         if (!v.id) return; 
+//         await prisma.mesureValeur.update({
+//           where: { id: v.id },
+//           data: { valeur: v.valeur },
+//         });
+//       })
+//     );
 
-    const updated = await prisma.mesure.findUnique({
-      where: { id: id },
-      include: {
-        valeurs: { include: { mesureType: true } },
-      },
-    });
+//     const updated = await prisma.mesure.findUnique({
+//       where: { id: id },
+//       include: {
+//         valeurs: { include: { mesureType: true } },
+//       },
+//     });
 
-    res.status(200).json({
-      success: true,
-      message: "Mesure mise à jour avec succès ✅",
-      data: updated,
-    });
+//     res.status(200).json({
+//       success: true,
+//       message: "Mesure mise à jour avec succès ✅",
+//       data: updated,
+//     });
 
 
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-};
+//   } catch (err) {
+//     console.error(err);
+//     return res.status(500).json({ error: "Server error" });
+//   }
+// };
 
-export const deleteMesureByOrder = async (req: Request, res: Response) => {
-  const { id } = req.params;
+// export const deleteMesureByOrder = async (req: Request, res: Response) => {
+//   const { id } = req.params;
    
-  try {
-    const mesure = await prisma.mesure.findUnique({ where: { id } });
-    if (!mesure) return res.status(404).json({ error: "Mesure not found" });
+//   try {
+//     const mesure = await prisma.mesure.findUnique({ where: { id } });
+//     if (!mesure) return res.status(404).json({ error: "Mesure not found" });
 
-    const commande = await prisma.commande.findUnique({ where: { id: mesure.commandeId } });
-    if (!commande) return res.status(404).json({ error: "Commande not found" });
+//     const commande = await prisma.commande.findUnique({ where: { id: mesure.commandeId } });
+//     if (!commande) return res.status(404).json({ error: "Commande not found" });
 
-    await prisma.mesure.delete({ where: { id } });
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
-  }
-};
+//     await prisma.mesure.delete({ where: { id } });
+//     return res.json({ ok: true });
+//   } catch (err) {
+//     console.error(err);
+//     return res.status(500).json({ error: "Server error" });
+//   }
+// };

@@ -8,30 +8,39 @@ datasource db {
 }
 
 model User {
-  id             String            @id @default(uuid())
-  firstName      String
-  lastName       String
+  id             String         @id @default(uuid())
   email          String         @unique
-  clerkId        String         @unique
-  img            String?
-  expoPushToken  String?
+  password       String
+  googleId       String?        @unique
+  refreshToken   String?
+  profile        Profile?
+
   role           UserRole       @default(EMPLOYEE)
   createdAt      DateTime       @default(now())
   disponibilite  Boolean        @default(true)
 
-  commandes      Commande[]     // commandes créées par cet utilisateur
+  commandes      Commande[]    
+  commandesAssignees Commande[] @relation("CommandeAssignedTo")
 
-  commandesAssignees Commande[] @relation("CommandeAssignedTo") // ← RELATION AJOUTÉE
-
-  controles      Controle[]     // contrôles effectués
-  commandesControlees Commande[] @relation("CommandeControleur") // commandes où il est le controleur
+  controles      Controle[]  
+  commandesControlees Commande[] @relation("CommandeControleur") 
 
   penalites      Penalite[]
   remunerations  Remuneration[]
+
   notifications  Notification[] @relation("NotificationDestinataire")
   paiementsProcessee Paiement[] @relation("PaiementProcessedBy")
 }
 
+model Profile{
+  id            String            @id @default(uuid())
+  userId        String            @unique
+    
+  firstName      String
+  lastName       String
+  img            String?
+  user           User           @relation(fields: [userId], references: [id])
+} 
 
 model Client {
   id            String            @id @default(uuid())

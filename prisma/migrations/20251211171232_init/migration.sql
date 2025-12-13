@@ -5,6 +5,9 @@ CREATE TYPE "ModePaiement" AS ENUM ('ESPECES', 'MOBILE_MONEY', 'CARTE', 'VIREMEN
 CREATE TYPE "PaiementStatut" AS ENUM ('EN_ATTENTE', 'VALIDE', 'ECHEC', 'REMBOURSE');
 
 -- CreateEnum
+CREATE TYPE "ImageType" AS ENUM ('MODEL', 'TISSU');
+
+-- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'CONTROLLEUR', 'EMPLOYEE');
 
 -- CreateEnum
@@ -14,7 +17,7 @@ CREATE TYPE "Gender" AS ENUM ('M', 'F');
 CREATE TYPE "CommandeStatus" AS ENUM ('EN_COURS', 'ASSIGNEE', 'MESURE_ENREGISTREE', 'EN_PRODUCTION', 'EN_CONTROLE', 'NON_CONFORME', 'RETOUCHE', 'PRET', 'LIVRE', 'RETARD', 'ANNULE');
 
 -- CreateEnum
-CREATE TYPE "NotifStatus" AS ENUM ('EN_ATTENTE', 'ASSIGNATION', 'RAPPEL_LIVRAISON', 'PENALITE', 'VALIDATION', 'LIVRAISON_PRET', 'RETARD', 'CONTROLE');
+CREATE TYPE "NotifStatus" AS ENUM ('EN_ATTENTE', 'ASSIGNATION', 'PRET', 'RAPPEL_LIVRAISON', 'PENALITE', 'VALIDATION', 'NON_CONFORME', 'LIVRAISON_PRET', 'RETARD', 'CONTROLE');
 
 -- CreateEnum
 CREATE TYPE "PenaliteType" AS ENUM ('RETARD', 'NON_CONFORME', 'AUTRE');
@@ -25,16 +28,26 @@ CREATE TYPE "RemuStatus" AS ENUM ('EN_ATTENTE', 'PAYEE', 'EN_RETARD');
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
-    "firstName" TEXT NOT NULL,
-    "lastName" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "clerkId" TEXT NOT NULL,
-    "expoPushToken" TEXT,
+    "password" TEXT NOT NULL,
+    "googleId" TEXT,
+    "refreshToken" TEXT,
     "role" "UserRole" NOT NULL DEFAULT 'EMPLOYEE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "disponibilite" BOOLEAN NOT NULL DEFAULT true,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Profile" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "firstName" TEXT NOT NULL,
+    "lastName" TEXT NOT NULL,
+    "img" TEXT,
+
+    CONSTRAINT "Profile_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -49,6 +62,28 @@ CREATE TABLE "Client" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Client_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CommandeImage" (
+    "id" TEXT NOT NULL,
+    "type" "ImageType" NOT NULL,
+    "url" TEXT NOT NULL,
+    "commandeId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CommandeImage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StyleImage" (
+    "id" TEXT NOT NULL,
+    "type" "ImageType" NOT NULL,
+    "url" TEXT NOT NULL,
+    "styleId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StyleImage_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -99,7 +134,6 @@ CREATE TABLE "Commande" (
     "status" "CommandeStatus" NOT NULL DEFAULT 'EN_COURS',
     "prix" DOUBLE PRECISION,
     "montantAvance" DOUBLE PRECISION,
-    "imgCmd" TEXT,
     "audioFile" TEXT,
     "clientId" TEXT NOT NULL,
     "styleId" TEXT NOT NULL,
@@ -207,7 +241,10 @@ CREATE TABLE "_ClientStyles" (
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_clerkId_key" ON "User"("clerkId");
+CREATE UNIQUE INDEX "User_googleId_key" ON "User"("googleId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Profile_userId_key" ON "Profile"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Client_telephone_key" ON "Client"("telephone");
@@ -231,10 +268,19 @@ CREATE INDEX "Commande_dateCommande_idx" ON "Commande"("dateCommande");
 CREATE INDEX "_ClientStyles_B_index" ON "_ClientStyles"("B");
 
 -- AddForeignKey
+ALTER TABLE "Profile" ADD CONSTRAINT "Profile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CommandeImage" ADD CONSTRAINT "CommandeImage_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StyleImage" ADD CONSTRAINT "StyleImage_styleId_fkey" FOREIGN KEY ("styleId") REFERENCES "Style"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Mesure" ADD CONSTRAINT "Mesure_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Mesure" ADD CONSTRAINT "Mesure_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Mesure" ADD CONSTRAINT "Mesure_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MesureValeur" ADD CONSTRAINT "MesureValeur_mesureTypeId_fkey" FOREIGN KEY ("mesureTypeId") REFERENCES "MesureType"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -258,10 +304,10 @@ ALTER TABLE "Commande" ADD CONSTRAINT "Commande_controleurId_fkey" FOREIGN KEY (
 ALTER TABLE "Commande" ADD CONSTRAINT "Commande_assignedToId_fkey" FOREIGN KEY ("assignedToId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Fourniture" ADD CONSTRAINT "Fourniture_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Fourniture" ADD CONSTRAINT "Fourniture_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Controle" ADD CONSTRAINT "Controle_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Controle" ADD CONSTRAINT "Controle_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Controle" ADD CONSTRAINT "Controle_controleurId_fkey" FOREIGN KEY ("controleurId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -270,22 +316,22 @@ ALTER TABLE "Controle" ADD CONSTRAINT "Controle_controleurId_fkey" FOREIGN KEY (
 ALTER TABLE "Penalite" ADD CONSTRAINT "Penalite_employeId_fkey" FOREIGN KEY ("employeId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Penalite" ADD CONSTRAINT "Penalite_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Penalite" ADD CONSTRAINT "Penalite_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Remuneration" ADD CONSTRAINT "Remuneration_employeId_fkey" FOREIGN KEY ("employeId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Remuneration" ADD CONSTRAINT "Remuneration_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Remuneration" ADD CONSTRAINT "Remuneration_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Notification" ADD CONSTRAINT "Notification_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Notification" ADD CONSTRAINT "Notification_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_destinataireId_fkey" FOREIGN KEY ("destinataireId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Paiement" ADD CONSTRAINT "Paiement_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Paiement" ADD CONSTRAINT "Paiement_commandeId_fkey" FOREIGN KEY ("commandeId") REFERENCES "Commande"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Paiement" ADD CONSTRAINT "Paiement_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE SET NULL ON UPDATE CASCADE;

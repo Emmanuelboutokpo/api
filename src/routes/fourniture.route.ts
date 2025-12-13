@@ -1,14 +1,14 @@
-import { Router } from "express";
+// import { Router } from "express";
 
-import { requireAuth } from "@clerk/express";
-import { createFourniture, deleteFourniture, getFournitures, updateFourniture } from "../controllers/fourniture.controller";
+// import { requireAuth } from "@clerk/express";
+// import { createFourniture, deleteFourniture, getFournitures, updateFourniture } from "../controllers/fourniture.controller";
 
-const router: Router = Router();
+// const router: Router = Router();
 
-router.post("/:commandeId/fournitures", createFourniture);
-router.get("/:commandeId/fournitures", getFournitures);
-router.patch("/fournitures/:id", updateFourniture);
-router.delete("/fournitures/:id", deleteFourniture);
+// router.post("/:commandeId/fournitures", createFourniture);
+// router.get("/:commandeId/fournitures", getFournitures);
+// router.patch("/fournitures/:id", updateFourniture);
+// router.delete("/fournitures/:id", deleteFourniture);
 
 
-export default router;
+// export default router;

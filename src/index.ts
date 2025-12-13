@@ -3,15 +3,15 @@ import 'dotenv/config'
 import bodyParser from 'body-parser'
 import cors from 'cors'
 
-import clientRoutes from './routes/client.routes';
-import styleRoutes from './routes/style.route';
-import mesureRoutes from './routes/mesure.routes';
-import tableauRoutes from './routes/MesureType.routes';
-import commandeRoutes from "./routes/commande.routes";
-import FournitureRoutes from "./routes/fourniture.route";
-import notif from "./routes/notif.routes";
-import userRoute from "./routes/users.routes"
-import control from "./routes/control.routes"
+// import clientRoutes from './routes/client.routes';
+// import styleRoutes from './routes/style.route';
+// import mesureRoutes from './routes/mesure.routes';
+// import tableauRoutes from './routes/MesureType.routes';
+// import commandeRoutes from "./routes/commande.routes";
+// import FournitureRoutes from "./routes/fourniture.route";
+// import notif from "./routes/notif.routes";
+// import userRoute from "./routes/users.routes"
+// import control from "./routes/control.routes"
 
 import authRoute from "./routes/auth.routes"
 

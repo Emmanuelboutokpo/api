@@ -1,18 +1,18 @@
-import { Router } from 'express';
-import {
-  addMesureType,
-  updateMesureType,
-  deleteMesureType,
-  getMesureType,
-  getMesureTypeById,
-} from '../controllers/mesureType.controller';
+// import { Router } from 'express';
+// import {
+//   addMesureType,
+//   updateMesureType,
+//   deleteMesureType,
+//   getMesureType,
+//   getMesureTypeById,
+// } from '../controllers/mesureType.controller';
 
-const router = Router();
+// const router = Router();
 
-router.post('/label-mesures', addMesureType);  
-router.get('/label-mesures', getMesureType);  
-router.get('/label-mesure/:id', getMesureTypeById);  
-router.patch('/label-mesure/:id', updateMesureType);  
-router.delete('/label-mesure/:id', deleteMesureType);  
+// router.post('/label-mesures', addMesureType);  
+// router.get('/label-mesures', getMesureType);  
+// router.get('/label-mesure/:id', getMesureTypeById);  
+// router.patch('/label-mesure/:id', updateMesureType);  
+// router.delete('/label-mesure/:id', deleteMesureType);  
 
-export default router;
+// export default router;

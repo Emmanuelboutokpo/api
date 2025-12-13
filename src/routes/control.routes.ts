@@ -1,10 +1,10 @@
-import { Router } from "express";
-import { requireAuth } from "@clerk/express";
-import { effectuerControle } from "../controllers/controle.controller";
+// import { Router } from "express";
+// import { requireAuth } from "@clerk/express";
+// import { effectuerControle } from "../controllers/controle.controller";
  
-const router: Router = Router();
+// const router: Router = Router();
 
-router.patch("/commandes/:id/confirm-controle",requireAuth(), effectuerControle);
+// router.patch("/commandes/:id/confirm-controle",requireAuth(), effectuerControle);
 
 
-export default router;
+// export default router;

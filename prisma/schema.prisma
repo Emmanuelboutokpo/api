@@ -8,254 +8,213 @@ datasource db {
 }
 
 model User {
-  id             String         @id @default(uuid())
-  email          String         @unique
-  password       String
-  googleId       String?        @unique
-  refreshToken   String?
-  profile        Profile?
-
-  role           UserRole       @default(EMPLOYEE)
-  createdAt      DateTime       @default(now())
-  disponibilite  Boolean        @default(true)
-
-  commandes      Commande[]    
-  commandesAssignees Commande[] @relation("CommandeAssignedTo")
-
-  controles      Controle[]  
-  commandesControlees Commande[] @relation("CommandeControleur") 
-
-  penalites      Penalite[]
-  remunerations  Remuneration[]
-
-  notifications  Notification[] @relation("NotificationDestinataire")
-  paiementsProcessee Paiement[] @relation("PaiementProcessedBy")
+  id                  String         @id @default(uuid())
+  email               String         @unique
+  password            String
+  googleId            String?        @unique
+  refreshToken        String?
+  role                UserRole       @default(EMPLOYEE)
+  createdAt           DateTime       @default(now())
+  disponibilite       Boolean        @default(true)
+  commandesAssignees  Commande[]     @relation("CommandeAssignedTo")
+  commandesControlees Commande[]     @relation("CommandeControleur")
+  commandes           Commande[]
+  controles           Controle[]
+  notifications       Notification[] @relation("NotificationDestinataire")
+  paiementsProcessee  Paiement[]     @relation("PaiementProcessedBy")
+  penalites           Penalite[]
+  profile             Profile?
+  remunerations       Remuneration[]
 }
 
-model Profile{
-  id            String            @id @default(uuid())
-  userId        String            @unique
-    
-  firstName      String
-  lastName       String
-  img            String?
-  user           User           @relation(fields: [userId], references: [id])
-} 
+model Profile {
+  id        String  @id @default(uuid())
+  userId    String  @unique
+  firstName String
+  lastName  String
+  img       String?
+  user      User    @relation(fields: [userId], references: [id])
+}
 
 model Client {
-  id            String            @id @default(uuid())
-  firstName     String
-  lastName      String
-  telephone     String         @unique
-  adresse       String?
-  imageUrl      String?
-  gender        Gender
-  createdAt     DateTime       @default(now())
-
-  commandes     Commande[]
-  paiements      Paiement[]
-  mesures       Mesure[]
-  styles        Style[]        @relation("ClientStyles")
+  id        String     @id @default(uuid())
+  firstName String
+  lastName  String
+  telephone String     @unique
+  adresse   String?
+  imageUrl  String?
+  gender    Gender
+  createdAt DateTime   @default(now())
+  commandes Commande[]
+  mesures   Mesure[]
+  paiements Paiement[]
+  styles    Style[]    @relation("ClientStyles")
 }
 
 model CommandeImage {
-  id         String      @id @default(uuid())
-  type       ImageType   // MODEL ou TISSU
+  id         String    @id @default(uuid())
+  type       ImageType
   url        String
-  commande   Commande     @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId String
-  createdAt  DateTime    @default(now())
+  createdAt  DateTime  @default(now())
+  commande   Commande  @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 }
 
 model StyleImage {
-  id       String    @id @default(uuid())
-  type     ImageType // MODEL ou TISSU
-  url      String
-  style    Style     @relation(fields: [styleId], references: [id])
-  styleId  String
-  createdAt DateTime @default(now())
+  id        String    @id @default(uuid())
+  type      ImageType
+  url       String
+  styleId   String
+  createdAt DateTime  @default(now())
+  style     Style     @relation(fields: [styleId], references: [id])
 }
 
 model Style {
-  id        String        @id @default(uuid())
-  model     String     @unique
-
-  images    StyleImage[] 
-  
-  clients   Client[]   @relation("ClientStyles")
+  id        String       @id @default(uuid())
+  model     String       @unique
   commandes Commande[]
+  images    StyleImage[]
+  clients   Client[]     @relation("ClientStyles")
 }
 
 model MesureType {
-  id         String             @id @default(uuid())
-  label      String          @unique
-  unit       String?
-  mesures    MesureValeur[]
+  id      String         @id @default(uuid())
+  label   String         @unique
+  unit    String?
+  mesures MesureValeur[]
 }
 
 model Mesure {
-  id         String               @id @default(uuid())
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-
-  client     Client            @relation(fields: [clientId], references: [id])
+  id         String         @id @default(uuid())
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
   clientId   String
-
-  commande   Commande        @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId String
-
+  client     Client         @relation(fields: [clientId], references: [id])
+  commande   Commande       @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   valeurs    MesureValeur[]
 }
 
 model MesureValeur {
-  id           String          @id @default(uuid())
+  id           String     @id @default(uuid())
   valeur       Float
-  mesureType   MesureType   @relation(fields: [mesureTypeId], references: [id])
   mesureTypeId String
-  mesure       Mesure       @relation(fields: [mesureId], references: [id])
   mesureId     String
+  mesure       Mesure     @relation(fields: [mesureId], references: [id])
+  mesureType   MesureType @relation(fields: [mesureTypeId], references: [id])
 }
 
 model Commande {
-  id                  String            @id @default(uuid())
+  id                  String          @id @default(uuid())
   description         String
-  dateCommande        DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  dateCommande        DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
   dateLivraisonPrevue DateTime
-  status              CommandeStatus @default(EN_COURS)
+  status              CommandeStatus  @default(EN_COURS)
   prix                Float?
   montantAvance       Float?
-   
   audioFile           String?
-
-  client              Client         @relation(fields: [clientId], references: [id])
   clientId            String
-
-  style               Style          @relation(fields: [styleId], references: [id])
   styleId             String
-
-  createdBy           User           @relation(fields: [userId], references: [id])
   userId              String
-
-  controleur          User?          @relation("CommandeControleur", fields: [controleurId], references: [id])
   controleurId        String?
-
-  assignedToId String?    // employé assigné
-  assignedTo   User?      @relation("CommandeAssignedTo", fields: [assignedToId], references: [id])
-
+  assignedToId        String?
+  assignedTo          User?           @relation("CommandeAssignedTo", fields: [assignedToId], references: [id])
+  client              Client          @relation(fields: [clientId], references: [id])
+  controleur          User?           @relation("CommandeControleur", fields: [controleurId], references: [id])
+  style               Style           @relation(fields: [styleId], references: [id])
+  createdBy           User            @relation(fields: [userId], references: [id])
   images              CommandeImage[]
-
-  notifications       Notification[]
-  fournitures         Fourniture[]
-  mesures             Mesure[]   
-  remunerations       Remuneration[]
-  penalites           Penalite[]
   controles           Controle[]
+  fournitures         Fourniture[]
+  mesures             Mesure[]
+  notifications       Notification[]
   paiements           Paiement[]
+  penalites           Penalite[]
+  remunerations       Remuneration[]
 
-  // Index utile pour cron jobs (rappels / retards)
   @@index([dateLivraisonPrevue, status])
   @@index([status])
   @@index([dateCommande])
 }
 
 model Fourniture {
-  id           String      @id @default(uuid())
-  designation  String
-  quantite     Int
-
-  commande     Commande  @relation(fields: [commandeId], references: [id], onDelete: Cascade)
-  commandeId   String
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(uuid())
+  designation String
+  quantite    Int
+  commandeId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  commande    Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
 }
 
 model Controle {
-  id            String       @id @default(uuid())
-  dateControle  DateTime  @default(now())
-  conforme      Boolean   @default(true)
-  remarques     String
-
-   commande      Commande     @relation(fields: [commandeId], references: [id], onDelete: Cascade)
-  commandeId    String
-
-  controleur    User     @relation(fields: [controleurId], references: [id])
-  controleurId  String
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  dateControle DateTime @default(now())
+  conforme     Boolean  @default(true)
+  remarques    String
+  commandeId   String
+  controleurId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  commande     Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  controleur   User     @relation(fields: [controleurId], references: [id])
 }
 
 model Penalite {
-  id           String           @id @default(uuid())
+  id           String       @id @default(uuid())
   type         PenaliteType
   montant      Float
-  raison       String 
-  datePenalite DateTime      @default(now())
-
-  employe      User          @relation(fields: [employeId], references: [id])
+  raison       String
+  datePenalite DateTime     @default(now())
   employeId    String
-  commande     Commande       @relation(fields: [commandeId], references: [id], onDelete: Cascade)
   commandeId   String
-
-  createdAt    DateTime      @default(now())
+  createdAt    DateTime     @default(now())
+  commande     Commande     @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  employe      User         @relation(fields: [employeId], references: [id])
 }
 
 model Remuneration {
-  id           String          @id @default(uuid())
-  montant      Float
-  date         DateTime      @default(now())
-  statut       RemuStatus    @default(EN_ATTENTE)
-
-  employe      User          @relation(fields: [employeId], references: [id])
-  employeId    String
-  commande     Commande       @relation(fields: [commandeId], references: [id], onDelete: Cascade)
-  commandeId   String
-
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id         String     @id @default(uuid())
+  montant    Float
+  date       DateTime   @default(now())
+  statut     RemuStatus @default(EN_ATTENTE)
+  employeId  String
+  commandeId String
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  commande   Commande   @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  employe    User       @relation(fields: [employeId], references: [id])
 }
 
 model Notification {
-  id               String         @id @default(uuid())
+  id               String      @id @default(uuid())
   commandeId       String
   message          String
-
   dateNotification DateTime    @default(now())
   status           NotifStatus @default(EN_ATTENTE)
-
-  commande         Commande     @relation(fields: [commandeId], references: [id], onDelete: Cascade)
-  destinataire     User?       @relation("NotificationDestinataire", fields: [destinataireId], references: [id])
   destinataireId   String?
-
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
+  commande         Commande    @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  destinataire     User?       @relation("NotificationDestinataire", fields: [destinataireId], references: [id])
 }
 
 model Paiement {
-  id             String           @id @default(uuid())
-  montant        Float
-  datePaiement   DateTime      @default(now())
-  modePaiement   ModePaiement  @default(ESPECES)
-
-  statut         PaiementStatut @default(VALIDE)
-  description    String?
-
-  // Relation avec la commande
-  commande       Commande      @relation(fields: [commandeId], references: [id], onDelete: Cascade)
-  commandeId     String
-
-  // Relation avec le client (facultatif)
-  client         Client?       @relation(fields: [clientId], references: [id])
-  clientId       String?
-
-  // Qui a traité/enregistré le paiement (optionnel)
-  processedBy    User?         @relation("PaiementProcessedBy", fields: [processedById], references: [id])
-  processedById  String?
-
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id            String         @id @default(uuid())
+  montant       Float
+  datePaiement  DateTime       @default(now())
+  modePaiement  ModePaiement   @default(ESPECES)
+  statut        PaiementStatut @default(VALIDE)
+  description   String?
+  commandeId    String
+  clientId      String?
+  processedById String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  client        Client?        @relation(fields: [clientId], references: [id])
+  commande      Commande       @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+  processedBy   User?          @relation("PaiementProcessedBy", fields: [processedById], references: [id])
 }
 
 enum ModePaiement {

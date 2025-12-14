@@ -53,7 +53,7 @@ export const sendEmail = async (to: string, subject: string, content: string, us
     console.log(`Email sent to ${to} with subject: ${subject}`);
          
     } catch (error) {
-        throw new Error('Failed to send email');
+        console.error('Failed to send email', error);
     }
   
 }

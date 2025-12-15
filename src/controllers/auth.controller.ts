@@ -44,7 +44,7 @@ export const signUpEmail = async (req: Request, res: Response): Promise<void> =>
         }
 
         const otp = generateNumericOTP();
-        await redis.set(`otp: ${email}`, otp, { ex: 300 }); // OTP valid for 5 minutes
+        await redis.set(`otp: ${email}`, otp, { ex: 3000 }); // OTP valid for 5 minutes
         await sendOPT({email, otp, user: {name : firstName || 'User'}});
         res.status(201).json({ message: 'User created successfully. Please verify your email.' });
         return;
@@ -55,26 +55,49 @@ export const signUpEmail = async (req: Request, res: Response): Promise<void> =>
 
 }
 
-export const verifyOpt = async (req: Request, res: Response): Promise<void> => {
-   const {email, otp, user} = req.body; 
-   const storedOtp = await redis.get(`otp: ${email}`);
-   if (storedOtp !== otp) throw new Error('Invalid OTP');
+export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
+  const { email, otp } = req.body;
 
-   const userRecord = await prisma.user.findUnique({ where: { email } });
-   if (!userRecord) throw new Error('User not found');
-   const accesToken = generateAccessToken(userRecord.id);
-   const refreshToken = generateRefreshToken(userRecord.id);
-    const hashRefresh = bcrypt.hashSync(refreshToken, 10);
-   await prisma.user.update({
-     where: {id: userRecord.id},
-    data: { refreshToken : hashRefresh }
-    });
-
-    await redis.del(`otp: ${email}`);
-    await sendConfirmationEmail(email, {name: user.profile.firsName || 'User'});
-    res.status(200).json({ accesToken, refreshToken });
+  if (!email || !otp) {
+    res.status(400).json({ message: "Email and OTP are required" });
     return;
-}
+  }
+
+  const storedOtp = await redis.get(`otp:${email}`);
+  if (!storedOtp || storedOtp !== otp) {
+    res.status(400).json({ message: "Invalid or expired OTP" });
+    return;
+  }
+
+  const userRecord = await prisma.user.findUnique({
+    where: { email },
+    include: { profile: true },
+  });
+
+  if (!userRecord) {
+    res.status(404).json({ message: "User not found" });
+    return;
+  }
+
+  const accessToken = generateAccessToken(userRecord.id);
+  const refreshToken = generateRefreshToken(userRecord.id);
+
+  const hashRefresh = await bcrypt.hash(refreshToken, 10);
+
+  await prisma.user.update({
+    where: { id: userRecord.id },
+    data: { refreshToken: hashRefresh },
+  });
+
+  await redis.del(`otp:${email}`);
+
+  await sendConfirmationEmail(email, {
+    name: userRecord.profile?.firstName || "User",
+  });
+
+  res.status(200).json({ accessToken, refreshToken });
+};
+
 
 export const login=async (req: Request, res: Response): Promise<void> => {
     const { email, password} = req.body;  

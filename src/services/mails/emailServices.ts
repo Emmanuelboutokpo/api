@@ -29,7 +29,7 @@ export const sendEmail = async (to: string, subject: string, content: string, us
     const html = getEmailTemplate(subject, content, user)
     try {
     await resend.emails.send({
-      from: process.env.EMAIL_FROM || "<onboarding@resend.dev>",
+      from: process.env.EMAIL_FROM || "onboarding@resend.dev",
       to,
       subject: `${process.env.COMPANY_NAME} - ${subject}`,
       html: html,

@@ -1,11 +1,14 @@
 import jwt from 'jsonwebtoken';
-const generateAccessToken = (data : any): string => {
-    return jwt.sign({ id: data[0].id,role:data[0].role }, process.env.ACCESS_TOKEN_SECRET as string, { expiresIn: '9h'
+const generateAccessToken =(user: {
+  id: string;
+  role: string;
+}): string => {
+    return jwt.sign({ id: user.id, role : user.role}, process.env.ACCESS_TOKEN_SECRET as string, { expiresIn: '15m'
     });
 };
 
-const generateRefreshToken = (data: any): string => {
-    return jwt.sign({ id: data[0].id,role:data[0].role }, process.env.REFRESH_TOKEN_SECRET as string, { expiresIn: '7d' });
+const generateRefreshToken = (user : {id : string}): string => {
+    return jwt.sign({ id: user.id}, process.env.REFRESH_TOKEN_SECRET as string, { expiresIn: '7d' });
 };
 
 const verifyToken = (token: string, secret : string): any => {

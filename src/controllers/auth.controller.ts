@@ -64,8 +64,6 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
   }
 
   const storedOtp = await redis.get(`otp:${email}`);
-
-  console.log(storedOtp);
   
   if (!storedOtp || storedOtp !== otp) {
     res.status(400).json({ message: "Invalid or expired OTP" });
@@ -82,8 +80,8 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const accessToken = generateAccessToken(userRecord.id);
-  const refreshToken = generateRefreshToken(userRecord.id);
+  const accessToken = generateAccessToken({id: userRecord.id, role: userRecord.role});
+  const refreshToken = generateRefreshToken({id: userRecord.id});
 
   const hashRefresh = await bcrypt.hash(refreshToken, 10);
 
@@ -107,9 +105,11 @@ export const login=async (req: Request, res: Response): Promise<void> => {
     try {
           const user = await prisma.user.findUnique({ where: { email }, include: { profile: true } });
           if (!user || !await bcrypt.compare(password, user.password)) throw new Error('Invalid credentials');
-          const accesToken = generateAccessToken(user.id);
-          const refreshToken = generateRefreshToken(user.id);
+         
+          const accesToken = generateAccessToken({id: user.id, role: user.role});
+          const refreshToken = generateRefreshToken({id: user.id});
           const hashRefresh = bcrypt.hashSync(refreshToken, 10);
+          
           await prisma.user.update({
             where: {id: user.id},
             data: { refreshToken : hashRefresh }

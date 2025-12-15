@@ -96,7 +96,17 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
     name: userRecord.profile?.firstName || "User",
   });
 
-  res.status(200).json({ accessToken, refreshToken });
+   res.status(200).json({
+    accessToken,
+    refreshToken,
+    user: {
+      id: userRecord.id,
+      email: userRecord.email,
+      role: userRecord.role,
+      profile: userRecord.profile,
+    },
+  });
+  
 };
 
 

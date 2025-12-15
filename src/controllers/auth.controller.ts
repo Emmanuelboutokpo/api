@@ -44,7 +44,7 @@ export const signUpEmail = async (req: Request, res: Response): Promise<void> =>
         }
 
         const otp = generateNumericOTP();
-        await redis.set(`otp: ${email}`, otp, { ex: 3000 }); // OTP valid for 5 minutes
+        await redis.set(`otp:${email}`, otp, { ex: 600 }); // OTP valid for 5 minutes
         await sendOPT({email, otp, user: {name : firstName || 'User'}});
         res.status(201).json({ message: 'User created successfully. Please verify your email.' });
         return;
@@ -64,6 +64,9 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
   }
 
   const storedOtp = await redis.get(`otp:${email}`);
+
+  console.log(storedOtp);
+  
   if (!storedOtp || storedOtp !== otp) {
     res.status(400).json({ message: "Invalid or expired OTP" });
     return;

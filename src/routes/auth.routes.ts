@@ -6,6 +6,7 @@ import { isRequestValidated } from '../validator/auth.validator';
 
 router.post('/signup', signUpEmail, isRequestValidated);    
 router.post('/verify-otp', verifyOtp);
+router.post('/resend-otp', verifyOtp);
 router.post('/login', login, isRequestValidated);
 router.post('/refresh-token', refreshTokens);
 router.post('/logout/:id', logoutUser);

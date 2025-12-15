@@ -123,6 +123,59 @@ export const login=async (req: Request, res: Response): Promise<void> => {
     }
 }
 
+export const resendOtp = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({ message: 'Email requis' });
+      return;
+    }
+
+    /* -------------------- CHECK USER -------------------- */
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { profile: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ message: 'Utilisateur introuvable' });
+      return;
+    }
+
+    /* -------------------- RATE LIMIT -------------------- */
+    const resendKey = `otp:resend:${email}`;
+    const cooldown = await redis.get(resendKey);
+
+    if (cooldown) {
+      res.status(429).json({
+        message: 'Veuillez patienter avant de renvoyer le code',
+      });
+      return;
+    }
+
+    /* -------------------- GENERATE OTP -------------------- */
+    const otp = generateNumericOTP();;
+
+    await redis.set(`otp:${email}`, otp, { ex: 300 }); // 5 min
+    await redis.set(resendKey, '1', { ex: 60 }); // cooldown 60s
+
+    /* -------------------- SEND EMAIL -------------------- */
+    await sendOPT({email, otp, user: {name : user.profile?.firstName || 'User'}});
+
+    res.status(200).json({
+      message: 'OTP renvoyé avec succès',
+    });
+  } catch (error) {
+    console.error('Resend OTP error:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+};
+
+
 export const refreshTokens = async (req: Request, res: Response) => {
     const { refreshToken} = req.body; 
 

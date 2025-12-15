@@ -1,23 +1,7 @@
-import nodemailer from 'nodemailer';
+import { Resend } from "resend";
 import { userInfo } from 'os';
 
-console.log("SMTP CONFIG:", {
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  user: process.env.SMTP_USER,
-  pass: process.env.SMTP_PASS ? "SET" : "MISSING",
-});
-
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: false,  
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const getEmailTemplate = (subject:string, content : string, user: {name: string}) => {
     return `
@@ -44,12 +28,13 @@ const getEmailTemplate = (subject:string, content : string, user: {name: string}
 export const sendEmail = async (to: string, subject: string, content: string, user: {name: string}) => {
     const html = getEmailTemplate(subject, content, user)
     try {
-        await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to,
-        subject: `${process.env.COMPANY_NAME} - ${subject}` ,
-        html: html,
+    await resend.emails.send({
+      from: "<onboarding@resend.dev>",
+      to,
+      subject: `${process.env.COMPANY_NAME} - ${subject}`,
+      html: html,
     });
+    
     console.log(`Email sent to ${to} with subject: ${subject}`);
          
     } catch (error) {

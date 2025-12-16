@@ -113,19 +113,28 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
 export const login=async (req: Request, res: Response): Promise<void> => {
     const { email, password} = req.body;  
     try {
-          const user = await prisma.user.findUnique({ where: { email }, include: { profile: true } });
-          if (!user || !await bcrypt.compare(password, user.password)) throw new Error('Invalid credentials');
+          const userRecord = await prisma.user.findUnique({ where: { email }, include: { profile: true } });
+          if (!userRecord || !await bcrypt.compare(password, userRecord.password)) throw new Error('Invalid credentials');
          
-          const accesToken = generateAccessToken({id: user.id, role: user.role});
-          const refreshToken = generateRefreshToken({id: user.id});
+          const accesToken = generateAccessToken({id: userRecord.id, role: userRecord.role});
+          const refreshToken = generateRefreshToken({id: userRecord.id});
           const hashRefresh = bcrypt.hashSync(refreshToken, 10);
           
           await prisma.user.update({
-            where: {id: user.id},
+            where: {id: userRecord.id},
             data: { refreshToken : hashRefresh }
          });
 
-         res.status(200).json({ accesToken, refreshToken });
+        res.status(200).json({
+    accesToken,
+    refreshToken,
+    user: {
+      id: userRecord.id,
+      email: userRecord.email,
+      role: userRecord.role,
+      profile: userRecord.profile,
+    },
+  });
          return;
 
     } catch (error) {

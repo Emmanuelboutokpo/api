@@ -1,22 +1,19 @@
-// import { Router } from 'express';
-// import {
-//   getClientById,
-//   updateClient,
-//   deleteClient,
-//   getAllClients,
-// } from '../controllers/client.controller';
-// import upload from '../middlewares/uploadMiddleware';
-// import { globalClientValidators, isRequestValidated } from '../validator/clientValidators';
-// import { clerkMiddleware } from '@clerk/express';
-// import { requireAdmin } from '../middlewares/requireSignin';
+import { Router } from 'express';
+import {
+  getClientById,
+  updateClient,
+  deleteClient,
+  getAllClients,
+} from '../controllers/client.controller';
+ import { globalClientValidators, isRequestValidated } from '../validator/clientValidators';
+import { requireSignin } from '../middlewares/requireSignin';
+  
+const router: Router = Router();
+
  
-// const router: Router = Router();
+router.get('/clients', getAllClients, requireSignin);
+router.get('/client/:id', getClientById, requireSignin);
+router.put('/client/:id', globalClientValidators,isRequestValidated, updateClient, requireSignin);
+router.delete('/client/:id', deleteClient, requireSignin);
 
-// router.use(clerkMiddleware());
-
-// router.get('/clients', getAllClients);
-// router.get('/client/:id', getClientById);
-// router.put('/client/:id', globalClientValidators,isRequestValidated, updateClient);
-// router.delete('/client/:id', deleteClient);
-
-// export default router;
+export default router;

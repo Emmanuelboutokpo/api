@@ -1,34 +1,6 @@
 import prisma from "../lib/prisma";
 import { Request, Response } from "express";
 
-// export const createStyle = async (req: Request, res: Response) => {
-//   try {
-//     const { clientId, model } = req.body;
-
-//     console.log(clientId, model);
-    
-
-//     // Vérifie si le model existe déjà
-//     const existing = await prisma.style.findFirst({
-//       where: { model: model },
-//     });
-
-//     if (existing) {
-//       return res.status(400).json({ message: "Ce model existe déjà." });
-//     }
-
-//     // Crée le model et ses dimensions associées
-//     const style = await prisma.style.create({
-//       data: { clientId: Number(clientId), model }
-//     });
-
-//     res.status(201).json(style);
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ message: "Erreur serveur." });
-//   }
-// };
-
 export const createStyleForClient = async (req: Request, res: Response) => {
   const { clientId, model } = req.body;
 

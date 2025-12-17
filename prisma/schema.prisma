@@ -49,6 +49,10 @@ model Client {
   mesures   Mesure[]
   paiements Paiement[]
   styles    Style[]    @relation("ClientStyles")
+
+  @@index([firstName])
+  @@index([lastName])
+  @@index([telephone])
 }
 
 model CommandeImage {
@@ -75,6 +79,8 @@ model Style {
   commandes Commande[]
   images    StyleImage[]
   clients   Client[]     @relation("ClientStyles")
+
+  @@index([model])
 }
 
 model MesureType {
@@ -133,8 +139,10 @@ model Commande {
   penalites           Penalite[]
   remunerations       Remuneration[]
 
-  @@index([dateLivraisonPrevue, status])
   @@index([status])
+  @@index([clientId])
+  @@index([assignedToId])
+  @@index([controleurId])
   @@index([dateCommande])
 }
 
@@ -146,6 +154,9 @@ model Fourniture {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   commande    Commande @relation(fields: [commandeId], references: [id], onDelete: Cascade)
+
+  @@index([designation])
+
 }
 
 model Controle {

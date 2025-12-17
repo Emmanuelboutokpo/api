@@ -16,12 +16,14 @@ export const requireSignin  = async (
   next: NextFunction
 ): Promise<void> => {
     const token = req.headers.authorization?.split(' ')[1];
+
     if (!token) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
+
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET!);
+      const payload = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET!);
       const user = await prisma.user.findUnique({where : {id: (payload as any).id}});
       
       if (!user) {
@@ -37,4 +39,16 @@ export const requireSignin  = async (
     }
 };
 
- 
+ export const authorize = (...roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    next();
+  };
+};

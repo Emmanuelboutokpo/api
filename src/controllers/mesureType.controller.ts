@@ -18,7 +18,6 @@ export const addMesureType = async (req: Request, res: Response, next: NextFunct
       });
     }
 
-
     const newMesure = await prisma.mesureType.create({
       data: {
         label

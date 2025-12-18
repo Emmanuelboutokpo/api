@@ -22,9 +22,9 @@ router.post("/commandes", requireSignin, upload.fields([
   { name: 'audioFile', maxCount: 1 }
 ]),authorize('ADMIN'), createCommande);
 
-router.get("/commande",requireSignin, getCommandes);
-router.get("/commande/:id",requireSignin, getCommandeById);
-router.get("/assigned", requireSignin, getAssignedCommandes);
+router.get("/commande", getCommandes);
+router.get("/commande/:id", getCommandeById);
+router.get("/assigned", getAssignedCommandes);
 
 router.put("/commande/:id", upload.fields([
   { name: 'modelImages', maxCount: 10 },
@@ -32,11 +32,11 @@ router.put("/commande/:id", upload.fields([
   { name: 'audioFile', maxCount: 1 }
 ]),requireSignin,authorize('ADMIN'), updateCommande);
 
-router.delete("/commande/:id",requireSignin,authorize('ADMIN'), deleteCommande);
+router.delete("/commande/:id",authorize('ADMIN'), deleteCommande);
 
-router.patch("/commandes/:id/accept",requireSignin,authorize('EMPLOYEE'), acceptCommande);
-router.patch("/commandes/:id/confirm-preparation",requireSignin, confirmPreparation);
-router.patch("/commandes/:id/control",requireSignin, markAsReadyForControl);
+router.patch("/commandes/:id/accept",authorize('EMPLOYEE'), acceptCommande);
+router.patch("/commandes/:id/confirm-preparation", confirmPreparation);
+router.patch("/commandes/:id/control", markAsReadyForControl);
 router.patch("/commandes/:id/to-control", assignControleur);
 
 

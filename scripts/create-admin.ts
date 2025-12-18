@@ -67,7 +67,7 @@ async function createAdmin() {
         role: admin.role,
       },
       ACCESS_ADMIN_SECRET,
-      { expiresIn: "15m" }
+      { expiresIn: "8h" }
     );
 
     const refreshToken = jwt.sign(

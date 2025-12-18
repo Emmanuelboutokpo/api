@@ -305,19 +305,18 @@ export const getCommandes = async (req: Request, res: Response) => {
       ? await prisma.commande.findMany({
           where: { id: { in: commandeIds } },
           include: {
-            images: true,
-            client: true,
-            style: true,
-            fournitures: true,
-            paiements: true,
-            notifications: {
-              take: 5,
-              orderBy: { createdAt: 'desc' },
-            },
-            controles: {
-              take: 1,
-              orderBy: { dateControle: 'desc' },
-            },
+            images: { select: { id: true, type: true, url: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
+           client: { select: { id: true, firstName: true, lastName: true, telephone: true, adresse: true, gender: true, imageUrl: true, } },
+           style: { select: { id: true, model: true, images: { select: { id: true, type: true, url: true } } } },
+           assignedTo: { select: { id: true, email: true, profile: { select: { firstName: true, lastName: true, img: true } } } },
+           controleur: { select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } } },
+           mesures: { include: { valeurs: { include: { mesureType: { select: { id: true, label: true, unit: true } } } } } },
+           fournitures: { select: { id: true, designation: true, quantite: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
+           notifications: { select: { id: true, message: true, status: true, createdAt: true, }, orderBy: { createdAt: 'desc' }, take: 5, },
+           paiements: { select: { id: true, montant: true, modePaiement: true, statut: true, createdAt: true, }, orderBy: { createdAt: 'desc' }, },
+            controles: { select: { id: true, dateControle: true, conforme: true, remarques: true, controleur: { select: { profile: { select: { firstName: true, lastName: true } } } } },orderBy: { dateControle: 'desc' }, take: 1 },
+            remunerations: { select: { id: true, montant: true, statut: true, date: true } },
+            penalites: { select: { id: true, type: true, montant: true, raison: true, datePenalite: true } } ,
           },
         })
       : [];

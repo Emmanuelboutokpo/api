@@ -17,6 +17,8 @@ export const getAllClients = async (req: Request, res: Response) => {
   const limitNumber = Math.min(50, Math.max(1, Number(limit)));
   const skip = (pageNumber - 1) * limitNumber;
 
+  const where: any = {};
+
   const isLiveSearch =
     typeof search === "string" && search.trim().length >= 2;
 
@@ -33,13 +35,17 @@ export const getAllClients = async (req: Request, res: Response) => {
             { telephone: { startsWith: q } },
           ],
         },
-        take: 8, // ⭐ Limite forte pour UX & perf
+        take: 8,
         orderBy: { firstName: "asc" },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          telephone: true,
+       include: {
+          mesures: { include: { valeurs: { include: { mesureType: { select: { id: true, label: true, unit: true } } } } } },
+          commandes: {
+            select: {
+              id: true,
+              status: true,
+              prix: true,
+            },
+          },
         },
       });
 
@@ -80,7 +86,7 @@ export const getAllClients = async (req: Request, res: Response) => {
         take: limitNumber,
         orderBy: { createdAt: "desc" },
         include: {
-          mesures: true,
+          mesures: { include: { valeurs: { include: { mesureType: { select: { id: true, label: true, unit: true } } } } } },
           commandes: {
             select: {
               id: true,
@@ -113,7 +119,18 @@ export const getAllClients = async (req: Request, res: Response) => {
 };
 
 export const getClientById = async (req: Request, res: Response) :Promise<any> => {
-  const client = await prisma.client.findUnique({ where: { id: req.params.id }, include: { mesures: true, commandes : true }, });
+  
+  const client = await prisma.client.findUnique({ where: { id: req.params.id }, include: {
+          mesures: { include: { valeurs: { include: { mesureType: { select: { id: true, label: true, unit: true } } } } } },
+          commandes: {
+            select: {
+              id: true,
+              status: true,
+              prix: true,
+            },
+          },
+        }, });
+
   if (!client) return res.status(404).json({ message: 'Client non trouvée' });
   res.json(client);
 };

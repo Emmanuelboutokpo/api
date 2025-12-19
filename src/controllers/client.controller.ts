@@ -1,78 +1,116 @@
+import { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma";
 import { Request, Response } from 'express';
 
 // controllers/client.controller.ts
-export const getAllClients = async (req: Request, res: Response): Promise<any> => {
-    const { page = 1, limit = 10, search, firstName, lastName, telephone } = req.query;
-    const pageNumber = Math.max(1, Number(page));
-    const limitNumber = Math.min(50, Math.max(1, Number(limit)));
-    const skip = (pageNumber - 1) * limitNumber;
-    const take = limitNumber;
+export const getAllClients = async (req: Request, res: Response) => {
+  const {
+    page = 1,
+    limit = 10,
+    search,
+    firstName,
+    lastName,
+    telephone,
+  } = req.query;
 
+  const pageNumber = Math.max(1, Number(page));
+  const limitNumber = Math.min(50, Math.max(1, Number(limit)));
+  const skip = (pageNumber - 1) * limitNumber;
 
-    // ✅ Recherche globale sur tous les champs
-    const filters: any = {};
-    
-    if (typeof search === 'string' && search.trim().length >= 2) {
-        filters.OR = [
-            { firstName: { contains: search as string, mode: 'insensitive' } },
-            { lastName: { contains: search as string, mode: 'insensitive' } },
-            { telephone: { contains: search as string, mode: 'insensitive' } },
-            { adresse: { contains: search as string, mode: 'insensitive' } },
-        ];
-    } else {
-        // ✅ Recherche spécifique par champ
-        if (firstName) {
-            filters.firstName = { contains: firstName as string, mode: 'insensitive' };
-        }
-        if (lastName) {
-            filters.lastName = { contains: lastName as string, mode: 'insensitive' };
-        }
-        if (telephone) {
-            filters.telephone = { contains: telephone as string, mode: 'insensitive' };
-        }
+  const isLiveSearch =
+    typeof search === "string" && search.trim().length >= 2;
+
+  try {
+  
+    if (isLiveSearch) {
+      const q = search.trim();
+
+      const clients = await prisma.client.findMany({
+        where: {
+          OR: [
+            { firstName: { startsWith: q, mode: "insensitive" } },
+            { lastName: { startsWith: q, mode: "insensitive" } },
+            { telephone: { startsWith: q } },
+          ],
+        },
+        take: 8, // ⭐ Limite forte pour UX & perf
+        orderBy: { firstName: "asc" },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          telephone: true,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        mode: "live-search",
+        data: clients,
+      });
     }
 
-    try {
-        const [total, clients] = await Promise.all([
-            prisma.client.count({ where: filters }),
-            prisma.client.findMany({
-                where: filters,
-                skip,
-                take,
-                orderBy: { createdAt: 'desc' },
-                include: { 
-                    mesures: true, 
-                    commandes: {
-                        select: {
-                            id: true,
-                            status: true,
-                            prix: true
-                        }
-                    } 
-                },
-            }),
-        ]);
+    const filters: Prisma.ClientWhereInput = {};
 
-        return res.status(200).json({
-            success: true,
-            data: clients,
-            pagination: {
-                total,
-                page: Number(page),
-                limit: Number(limit),
-                totalPages: Math.ceil(total / Number(limit)),
+    if (firstName) {
+      filters.firstName = {
+        contains: String(firstName),
+        mode: "insensitive",
+      };
+    }
+
+    if (lastName) {
+      filters.lastName = {
+        contains: String(lastName),
+        mode: "insensitive",
+      };
+    }
+
+    if (telephone) {
+      filters.telephone = {
+        contains: String(telephone),
+      };
+    }
+
+    const [total, clients] = await Promise.all([
+      prisma.client.count({ where: filters }),
+      prisma.client.findMany({
+        where: filters,
+        skip,
+        take: limitNumber,
+        orderBy: { createdAt: "desc" },
+        include: {
+          mesures: true,
+          commandes: {
+            select: {
+              id: true,
+              status: true,
+              prix: true,
             },
-        });
-    } catch (error) {
-        console.error('Erreur lors de la récupération des clients', error);
-        return res.status(500).json({ 
-            success: false,
-            message: 'Erreur serveur' 
-        });
-    }
-};
+          },
+        },
+      }),
+    ]);
 
+    return res.status(200).json({
+      success: true,
+      mode: "list",
+      data: clients,
+      pagination: {
+        total,
+        page: pageNumber,
+        limit: limitNumber,
+        totalPages: Math.ceil(total / limitNumber),
+      },
+    });
+  } catch (error) {
+    console.error("❌ GET CLIENTS ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Erreur serveur",
+    });
+  }
+};
 
 export const getClientById = async (req: Request, res: Response) :Promise<any> => {
   const client = await prisma.client.findUnique({ where: { id: req.params.id }, include: { mesures: true, commandes : true }, });

@@ -4,14 +4,6 @@ import prisma from "../lib/prisma";
 export const getNotifications = async (req: Request, res: Response) => {
   try {
 
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: "Utilisateur non trouvé" });
-    }
-
     const notifications = await prisma.notification.findMany({
       where: { status: "EN_ATTENTE" },
       include: {

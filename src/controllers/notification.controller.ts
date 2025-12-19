@@ -4,10 +4,6 @@ import prisma from "../lib/prisma";
 export const getNotifications = async (req: Request, res: Response) => {
   try {
 
-    if (!req.user) {
-      return res.status(401).json({ error: "Authentification requise" });
-    }
-
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
     });

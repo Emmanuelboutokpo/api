@@ -4,6 +4,6 @@ import { requireSignin } from "../middlewares/requireSignin";
  
 const router = express.Router();
 
-router.get("/notif", requireSignin, getNotifications);
+router.get("/notif", getNotifications);
 
 export default router;

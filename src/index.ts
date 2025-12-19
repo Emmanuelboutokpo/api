@@ -9,7 +9,7 @@ import cors from 'cors'
 import tableauRoutes from './routes/MesureType.routes';
 import commandeRoutes from "./routes/commande.routes";
 import FournitureRoutes from "./routes/fourniture.route";
-// import notif from "./routes/notif.routes";
+import notif from "./routes/notif.routes";
 // import userRoute from "./routes/users.routes"
 import control from "./routes/control.routes"
 
@@ -33,7 +33,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
  app.use('/api', tableauRoutes);
  app.use("/api", FournitureRoutes);
 // app.use("/api", userRoute);
-// app.use("/api", notif);
+app.use("/api", notif);
  app.use("/api", control);
 
 app.get("/api/health", (req, res) => {

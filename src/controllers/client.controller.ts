@@ -4,13 +4,16 @@ import { Request, Response } from 'express';
 // controllers/client.controller.ts
 export const getAllClients = async (req: Request, res: Response): Promise<any> => {
     const { page = 1, limit = 10, search, firstName, lastName, telephone } = req.query;
-    const skip = (Number(page) - 1) * Number(limit);
-    const take = Number(limit);
+    const pageNumber = Math.max(1, Number(page));
+    const limitNumber = Math.min(50, Math.max(1, Number(limit)));
+    const skip = (pageNumber - 1) * limitNumber;
+    const take = limitNumber;
+
 
     // ✅ Recherche globale sur tous les champs
     const filters: any = {};
     
-    if (search) {
+    if (typeof search === 'string' && search.trim().length >= 2) {
         filters.OR = [
             { firstName: { contains: search as string, mode: 'insensitive' } },
             { lastName: { contains: search as string, mode: 'insensitive' } },

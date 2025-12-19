@@ -10,10 +10,10 @@ import { requireSignin } from '../middlewares/requireSignin';
 
 const router = Router();
 
-router.post('/label-mesures', addMesureType, requireSignin);  
-router.get('/label-mesures', getMesureType, requireSignin);  
-router.get('/label-mesure/:id', getMesureTypeById, requireSignin);  
-router.patch('/label-mesure/:id', updateMesureType, requireSignin);  
-router.delete('/label-mesure/:id', deleteMesureType, requireSignin);  
-
+router.post('/label-mesures', addMesureType);  
+router.get('/label-mesures', getMesureType);  
+router.get('/label-mesure/:id', getMesureTypeById);  
+router.patch('/label-mesure/:id', updateMesureType);  
+router.delete('/label-mesure/:id', deleteMesureType);  
+ 
 export default router;

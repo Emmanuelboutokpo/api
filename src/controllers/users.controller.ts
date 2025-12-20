@@ -12,16 +12,19 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
   } = req.query;
 
   const pageNumber = Math.max(1, parseInt(page as string, 10));
-  const limitNumber = Math.max(1, parseInt(limit as string, 10));
+  const limitNumber = Math.min(50, Math.max(1, parseInt(limit as string, 10)));
   const skip = (pageNumber - 1) * limitNumber;
 
   try {
-    // ✅ Construire les filtres
     const where: any = {};
 
     // ✅ Filtre par rôle
-    if (role && ['ADMIN', 'EMPLOYEE', 'CONTROLLEUR'].includes(role as string)) {
-      where.role = role;
+    if (role) {
+      if (Array.isArray(role)) {
+        where.role = { in: role };
+      } else {
+        where.role = role;
+      }
     }
 
     // ✅ Filtre par disponibilité
@@ -29,16 +32,34 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
       where.disponibilite = disponibilite === 'true';
     }
 
-    // ✅ Recherche globale (nom, prénom, email)
-    if (search) {
+    // ✅ Recherche globale (User + Profile)
+    if (search && typeof search === 'string' && search.trim().length >= 1) {
       where.OR = [
-        { firstName: { contains: search as string, mode: 'insensitive' } },
-        { lastName: { contains: search as string, mode: 'insensitive' } },
-        { email: { contains: search as string, mode: 'insensitive' } },
+        {
+          email: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          profile: {
+            firstName: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        },
+        {
+          profile: {
+            lastName: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+        },
       ];
     }
 
-    // ✅ Récupérer les utilisateurs avec pagination
     const [users, totalCount] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -53,7 +74,13 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
           role: true,
           disponibilite: true,
           createdAt: true,
-          profile: { select: { firstName: true, lastName: true, img: true } },
+          profile: {
+            select: {
+              firstName: true,
+              lastName: true,
+              img: true,
+            },
+          },
           _count: {
             select: {
               commandesAssignees: true,
@@ -65,10 +92,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
       prisma.user.count({ where }),
     ]);
 
-    // ✅ Calculer la pagination
     const totalPages = Math.ceil(totalCount / limitNumber);
-    const hasNextPage = pageNumber < totalPages;
-    const hasPrevPage = pageNumber > 1;
 
     res.json({
       success: true,
@@ -78,18 +102,19 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
         page: pageNumber,
         limit: limitNumber,
         totalPages,
-        hasNextPage,
-        hasPrevPage,
+        hasNextPage: pageNumber < totalPages,
+        hasPrevPage: pageNumber > 1,
       },
     });
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ 
       success: false,
-      message: 'Erreur lors de la récupération des utilisateurs' 
+      message: 'Erreur lors de la récupération des utilisateurs',
     });
   }
 };
+
  
 
 // controllers/user.controller.ts
@@ -101,26 +126,39 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     // ✅ Vérifier si l'utilisateur existe
     const existingUser = await prisma.user.findUnique({
       where: { id },
+      include: { profile: true },
     });
 
     if (!existingUser) {
-      res.status(404).json({ 
+      res.status(404).json({
         success: false,
-        message: 'Utilisateur non trouvé' 
+        message: 'Utilisateur non trouvé',
       });
       return;
     }
 
-    // ✅ Mettre à jour l'utilisateur
+    // ✅ Construire la mise à jour du profile si nécessaire
+    const profileData =
+      firstName !== undefined ||
+      lastName !== undefined ||
+      img !== undefined
+        ? {
+            update: {
+              ...(firstName !== undefined && { firstName }),
+              ...(lastName !== undefined && { lastName }),
+              ...(img !== undefined && { img }),
+            },
+          }
+        : undefined;
+
+    // ✅ Mise à jour de l'utilisateur
     const updatedUser = await prisma.user.update({
       where: { id },
       data: {
-        ...(firstName && { firstName }),
-        ...(lastName && { lastName }),
-        ...(email && { email }),
-        ...(role && { role }),
+        ...(email !== undefined && { email }),
+        ...(role !== undefined && { role }),
         ...(disponibilite !== undefined && { disponibilite }),
-        ...(img !== undefined && { img }),
+        ...(profileData && { profile: profileData }),
       },
       select: {
         id: true,
@@ -128,6 +166,13 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
         role: true,
         disponibilite: true,
         createdAt: true,
+        profile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            img: true,
+          },
+        },
       },
     });
 
@@ -138,12 +183,13 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     });
   } catch (error) {
     console.error('Error updating user:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Erreur lors de la mise à jour de l\'utilisateur' 
+      message: "Erreur lors de la mise à jour de l'utilisateur",
     });
   }
 };
+
 
 
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {

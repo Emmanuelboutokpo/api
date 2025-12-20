@@ -1,124 +1,80 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 
 // controllers/user.controller.ts
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
-  const {
-    page = '1',
-    limit = '10',
-    role,
-    search,
-    disponibilite,
-  } = req.query;
-
-  const pageNumber = Math.max(1, parseInt(page as string, 10));
-  const limitNumber = Math.min(50, Math.max(1, parseInt(limit as string, 10)));
-  const skip = (pageNumber - 1) * limitNumber;
-
   try {
-    const where: any = {};
+    const { search, disponibilite } = req.query;
+    
+    const where: Prisma.UserWhereInput = {
+      role: { in: ["EMPLOYEE", "CONTROLLEUR"] }
+    };
 
-    // ✅ Filtre par rôle
-    if (role) {
-      if (Array.isArray(role)) {
-        where.role = { in: role };
-      } else {
-        where.role = role;
-      }
-    }
-
-    // ✅ Filtre par disponibilité
-    if (disponibilite !== undefined) {
+    // Filtre disponibilité
+    if (disponibilite === 'true' || disponibilite === 'false') {
       where.disponibilite = disponibilite === 'true';
     }
 
-    // ✅ Recherche globale (User + Profile)
-    if (search && typeof search === 'string' && search.trim().length >= 1) {
+    // Recherche corrigée
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      const searchTerm = search.trim();
       where.OR = [
-        {
-          email: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
+        { email: { contains: searchTerm, mode: 'insensitive' } },
+        { 
           profile: {
-            is: {
-              firstName: {
-                contains: search,
-                mode: 'insensitive',
-              },
-            },
-          },
-        },
-        {
-          profile: {
-            is: {
-              lastName: {
-                contains: search,
-                mode: 'insensitive',
-              },
-            },
-          },
-        },
+            OR: [
+              { firstName: { contains: searchTerm, mode: 'insensitive' } },
+              { lastName: { contains: searchTerm, mode: 'insensitive' } },
+            ]
+          }
+        }
       ];
     }
 
-    const [users, totalCount] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        skip,
-        take: limitNumber,
-        orderBy: {
-          createdAt: 'desc',
-        },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          disponibilite: true,
-          createdAt: true,
-          profile: {
-            select: {
-              firstName: true,
-              lastName: true,
-              img: true,
-            },
-          },
-          _count: {
-            select: {
-              commandesAssignees: true,
-              commandesControlees: true,
-            },
+    const users = await prisma.user.findMany({
+      where,
+      orderBy: { role: 'asc' },
+      include: {
+        profile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            img: true,
           },
         },
-      }),
-      prisma.user.count({ where }),
-    ]);
+      },
+    });
 
-    const totalPages = Math.ceil(totalCount / limitNumber);
+    // Transformer les données
+    const result = users.map(user => ({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      disponibilite: user.disponibilite,
+      firstName: user.profile?.firstName || '',
+      lastName: user.profile?.lastName || '',
+      fullName: `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || user.email,
+      img: user.profile?.img,
+    }));
 
     res.json({
       success: true,
-      data: users,
-      pagination: {
-        total: totalCount,
-        page: pageNumber,
-        limit: limitNumber,
-        totalPages,
-        hasNextPage: pageNumber < totalPages,
-        hasPrevPage: pageNumber > 1,
-      },
+      data: result,
+      count: result.length,
     });
+
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('❌ Error in getEmployeesAndControleurs:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de la récupération des utilisateurs',
+      message: 'Erreur serveur',
+      ...(process.env.NODE_ENV === 'development' && { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      })
     });
   }
 };
-
 
 // controllers/user.controller.ts
 export const updateUser = async (req: Request, res: Response): Promise<void> => {

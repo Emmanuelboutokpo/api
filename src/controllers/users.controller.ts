@@ -3,12 +3,12 @@ import prisma from '../lib/prisma';
 
 // controllers/user.controller.ts
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
-  const { 
-    page = '1', 
-    limit = '10', 
-    role, 
+  const {
+    page = '1',
+    limit = '10',
+    role,
     search,
-    disponibilite 
+    disponibilite,
   } = req.query;
 
   const pageNumber = Math.max(1, parseInt(page as string, 10));
@@ -43,17 +43,21 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
         },
         {
           profile: {
-            firstName: {
-              contains: search,
-              mode: 'insensitive',
+            is: {
+              firstName: {
+                contains: search,
+                mode: 'insensitive',
+              },
             },
           },
         },
         {
           profile: {
-            lastName: {
-              contains: search,
-              mode: 'insensitive',
+            is: {
+              lastName: {
+                contains: search,
+                mode: 'insensitive',
+              },
             },
           },
         },
@@ -108,14 +112,13 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error) {
     console.error('Error fetching users:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: 'Erreur lors de la récupération des utilisateurs',
     });
   }
 };
 
- 
 
 // controllers/user.controller.ts
 export const updateUser = async (req: Request, res: Response): Promise<void> => {

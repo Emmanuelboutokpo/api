@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import prisma from '../lib/prisma';
+import { log } from 'console';
 
 declare global {
   namespace Express {
@@ -40,7 +41,9 @@ export const requireSignin  = async (
 };
 
  export const authorize = (...roles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+   
+   return (req: Request, res: Response, next: NextFunction) => {
+
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }

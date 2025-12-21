@@ -807,13 +807,10 @@ export const deleteCommande = async (req: Request, res: Response) => {
 
 export const acceptCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
-  //  if (!req.user) {
-  //     return res.status(401).json({ 
-  //       success: false, 
-  //       message: "Authentification requise" 
-  //     });
-  //   }
 
+  console.log(req.user);
+  
+  
      if (req.user.role !== 'EMPLOYEE') {
     return res.status(403).json({ 
       success: false, 

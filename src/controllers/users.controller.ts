@@ -5,16 +5,11 @@ import { Prisma } from '@prisma/client';
 // controllers/user.controller.ts
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { search, disponibilite } = req.query;
+    const { search } = req.query;
     
     const where: Prisma.UserWhereInput = {
       role: { in: ["EMPLOYEE", "CONTROLLEUR"] }
     };
-
-    // Filtre disponibilité
-    if (disponibilite === 'true' || disponibilite === 'false') {
-      where.disponibilite = disponibilite === 'true';
-    }
 
     // Recherche corrigée
     if (search && typeof search === 'string' && search.trim().length > 0) {

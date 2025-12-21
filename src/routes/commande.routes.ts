@@ -24,7 +24,7 @@ router.post("/commandes", requireSignin, upload.fields([
 
 router.get("/commande", getCommandes);
 router.get("/commande/:id", getCommandeById);
-router.get("/assigned", getAssignedCommandes);
+router.get("/assigned",requireSignin, getAssignedCommandes);
 
 router.put("/commande/:id", upload.fields([
   { name: 'modelImages', maxCount: 10 },

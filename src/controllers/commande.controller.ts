@@ -807,9 +807,6 @@ export const deleteCommande = async (req: Request, res: Response) => {
 
 export const acceptCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
-
-  console.log(req.user);
-  
   
      if (req.user.role !== 'EMPLOYEE') {
     return res.status(403).json({ 

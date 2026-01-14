@@ -19,8 +19,6 @@ import { initializeSocket } from "./lib/socket";
 
 const app = express()
 
-//app.use(clerkMiddleware());
-//app.use(syncUser)
 app.use(cors({origin: "*", credentials: true}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));

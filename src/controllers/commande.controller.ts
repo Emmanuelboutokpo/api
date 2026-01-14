@@ -3,7 +3,7 @@ import prisma from "../lib/prisma";
 import { cloudinary } from "../lib/cloudinary";
 import { createAndSendNotification } from "../services/notification/service";
 import { validationResult } from "express-validator";
-import { ImageType } from "@prisma/client";
+import { $Enums, ImageType, Prisma } from "@prisma/client";
 
  export async function createCommande(req: Request, res: Response) {
   try {
@@ -158,6 +158,12 @@ import { ImageType } from "@prisma/client";
       });
       if (!employe) throw new Error("Aucun employé disponible");
 
+      const controleur = await tx.user.findFirst({
+        where: { role: "CONTROLLEUR", disponibilite: true },
+      });
+
+      if (!controleur) throw new Error("Aucun contrôleur disponible");
+
       // 📦 Commande - ICI on utilise req.user.id
       const commande = await tx.commande.create({
         data: {
@@ -213,11 +219,27 @@ import { ImageType } from "@prisma/client";
         },
       });
 
+
+      const notif_controller = await tx.notification.create({
+        data: {
+          commandeId: commande.id,
+          message: `Nouvelle commande #${commande.id} (Style: ${style.model}) assignée.`,
+          status: "EN_ATTENTE",
+          destinataireId: controleur.id,
+        },
+      });
+
       // 🚀 Envoi de la notif temps réel
       await createAndSendNotification({
         commandeId: commande.id,
         message: notif.message,
         destinataireId: employe.id,
+      });
+
+       await createAndSendNotification({
+        commandeId: commande.id,
+        message: notif_controller.message,
+        destinataireId: controleur.id,
       });
 
       return { commande, client, style };
@@ -251,46 +273,62 @@ export const getCommandes = async (req: Request, res: Response) => {
       search,
     } = req.query;
 
+    // Conversion et validation des paramètres
     const pageNumber = Math.max(1, Number(page));
     const limitNumber = Math.max(1, Number(limit));
-    const skip = (pageNumber - 1) * limitNumber
+    const skip = (pageNumber - 1) * limitNumber;
 
-    const where: any = {};
+    const where: Prisma.CommandeWhereInput = {};
 
-    if (status) where.status = status;
-    if (clientId) where.clientId = clientId;
-    if (assignedToId) where.assignedToId = assignedToId;
-    if (controleurId) where.controleurId = controleurId;
-
+    // Gestion des dates
     if (dateFrom || dateTo) {
       where.dateCommande = {};
       if (dateFrom) where.dateCommande.gte = new Date(dateFrom as string);
       if (dateTo) where.dateCommande.lte = new Date(dateTo as string);
     }
 
-    if (search) {
+    // Gestion de la recherche
+    if (search && typeof search === 'string') {
       where.OR = [
-        { description: { contains: search as string, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
         {
           client: {
             OR: [
-              { firstName: { contains: search as string, mode: 'insensitive' } },
-              { lastName: { contains: search as string, mode: 'insensitive' } },
-              { telephone: { contains: search as string, mode: 'insensitive' } },
+              { firstName: { contains: search, mode: 'insensitive' } },
+              { lastName: { contains: search, mode: 'insensitive' } },
+              { telephone: { contains: search, mode: 'insensitive' } },
             ],
           },
         },
-        { style: { model: { contains: search as string, mode: 'insensitive' } } },
+        { style: { model: { contains: search, mode: 'insensitive' } } },
         {
           fournitures: {
             some: {
-              designation: { contains: search as string, mode: 'insensitive' },
+              designation: { contains: search, mode: 'insensitive' },
             },
           },
         },
       ];
     }
 
+    // Gestion des filtres avec vérification de type
+    if (status && typeof status === 'string') {
+      where.status = status as $Enums.CommandeStatus;
+    }
+    
+    if (clientId && typeof clientId === 'string') {
+      where.clientId = clientId;
+    }
+    
+    if (assignedToId && typeof assignedToId === 'string') {
+      where.assignedToId = assignedToId;
+    }
+    
+    if (controleurId && typeof controleurId === 'string') {
+      where.controleurId = controleurId;
+    }
+
+    // Récupération des IDs
     const ids = await prisma.commande.findMany({
       where,
       skip,
@@ -305,18 +343,136 @@ export const getCommandes = async (req: Request, res: Response) => {
       ? await prisma.commande.findMany({
           where: { id: { in: commandeIds } },
           include: {
-            images: { select: { id: true, type: true, url: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
-           client: { select: { id: true, firstName: true, lastName: true, telephone: true, adresse: true, gender: true, imageUrl: true, } },
-           style: { select: { id: true, model: true, images: { select: { id: true, type: true, url: true } } } },
-           assignedTo: { select: { id: true, email: true, profile: { select: { firstName: true, lastName: true, img: true } } } },
-           controleur: { select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } } },
-           mesures: { include: { valeurs: { include: { mesureType: { select: { id: true, label: true, unit: true } } } } } },
-           fournitures: { select: { id: true, designation: true, quantite: true, createdAt: true }, orderBy: { createdAt: 'desc' } },
-           notifications: { select: { id: true, message: true, status: true, createdAt: true, }, orderBy: { createdAt: 'desc' }, take: 5, },
-           paiements: { select: { id: true, montant: true, modePaiement: true, statut: true, createdAt: true, }, orderBy: { createdAt: 'desc' }, },
-            controles: { select: { id: true, dateControle: true, conforme: true, remarques: true, controleur: { select: { profile: { select: { firstName: true, lastName: true } } } } },orderBy: { dateControle: 'desc' }, take: 1 },
-            remunerations: { select: { id: true, montant: true, statut: true, date: true } },
-            penalites: { select: { id: true, type: true, montant: true, raison: true, datePenalite: true } } ,
+            images: { 
+              select: { id: true, type: true, url: true, createdAt: true }, 
+              orderBy: { createdAt: 'desc' } 
+            },
+            client: { 
+              select: { 
+                id: true, 
+                firstName: true, 
+                lastName: true, 
+                telephone: true, 
+                adresse: true, 
+                gender: true, 
+                imageUrl: true 
+              } 
+            },
+            style: { 
+              select: { 
+                id: true, 
+                model: true, 
+                images: { 
+                  select: { id: true, type: true, url: true } 
+                } 
+              } 
+            },
+            assignedTo: { 
+              select: { 
+                id: true, 
+                email: true, 
+                profile: { 
+                  select: { 
+                    firstName: true, 
+                    lastName: true, 
+                    img: true 
+                  } 
+                } 
+              } 
+            },
+            controleur: { 
+              select: { 
+                id: true, 
+                email: true, 
+                profile: { 
+                  select: { 
+                    firstName: true, 
+                    lastName: true 
+                  } 
+                } 
+              } 
+            },
+            mesures: { 
+              include: { 
+                valeurs: { 
+                  include: { 
+                    mesureType: { 
+                      select: { 
+                        id: true, 
+                        label: true, 
+                        unit: true 
+                      } 
+                    } 
+                  } 
+                } 
+              } 
+            },
+            fournitures: { 
+              select: { 
+                id: true, 
+                designation: true, 
+                quantite: true, 
+                createdAt: true 
+              }, 
+              orderBy: { createdAt: 'desc' } 
+            },
+            notifications: { 
+              select: { 
+                id: true, 
+                message: true, 
+                status: true, 
+                createdAt: true 
+              }, 
+              orderBy: { createdAt: 'desc' }, 
+              take: 5 
+            },
+            paiements: { 
+              select: { 
+                id: true, 
+                montant: true, 
+                modePaiement: true, 
+                statut: true, 
+                createdAt: true 
+              }, 
+              orderBy: { createdAt: 'desc' } 
+            },
+            controles: { 
+              select: { 
+                id: true, 
+                dateControle: true, 
+                conforme: true, 
+                remarques: true, 
+                controleur: { 
+                  select: { 
+                    profile: { 
+                      select: { 
+                        firstName: true, 
+                        lastName: true 
+                      } 
+                    } 
+                  } 
+                } 
+              }, 
+              orderBy: { dateControle: 'desc' }, 
+              take: 1 
+            },
+            remunerations: { 
+              select: { 
+                id: true, 
+                montant: true, 
+                statut: true, 
+                date: true 
+              } 
+            },
+            penalites: { 
+              select: { 
+                id: true, 
+                type: true, 
+                montant: true, 
+                raison: true, 
+                datePenalite: true 
+              } 
+            },
           },
         })
       : [];
@@ -346,7 +502,6 @@ export const getCommandes = async (req: Request, res: Response) => {
     });
   }
 };
-
 
 export const getCommandeById = async (req: Request, res: Response) => {
   const { id } = req.params;

@@ -6,30 +6,50 @@ import { Prisma } from '@prisma/client';
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const { search } = req.query;
-    
+
+    // 🔹 Base filter
     const where: Prisma.UserWhereInput = {
-      role: { in: ["EMPLOYEE", "CONTROLLEUR"] }
+      role: { in: ["EMPLOYEE", "CONTROLLEUR"] },
     };
 
-    // Recherche corrigée
-    if (search && typeof search === 'string' && search.trim().length > 0) {
+    // 🔹 Search filter (email + profile.firstName + profile.lastName)
+    if (typeof search === "string" && search.trim().length > 0) {
       const searchTerm = search.trim();
+
       where.OR = [
-        { email: { contains: searchTerm, mode: 'insensitive' } },
-        { 
+        {
+          email: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+        {
           profile: {
-            OR: [
-              { firstName: { contains: searchTerm, mode: 'insensitive' } },
-              { lastName: { contains: searchTerm, mode: 'insensitive' } },
-            ]
-          }
-        }
+            is: {
+              OR: [
+                {
+                  firstName: {
+                    contains: searchTerm,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  lastName: {
+                    contains: searchTerm,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          },
+        },
       ];
     }
 
+    // 🔹 Query
     const users = await prisma.user.findMany({
       where,
-      orderBy: { role: 'asc' },
+      orderBy: { role: "asc" },
       include: {
         profile: {
           select: {
@@ -41,32 +61,35 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    // Transformer les données
-    const result = users.map(user => ({
+    // 🔹 Transform response
+    const result = users.map((user) => ({
       id: user.id,
       email: user.email,
       role: user.role,
       disponibilite: user.disponibilite,
-      firstName: user.profile?.firstName || '',
-      lastName: user.profile?.lastName || '',
-      fullName: `${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || user.email,
-      img: user.profile?.img,
+      firstName: user.profile?.firstName ?? "",
+      lastName: user.profile?.lastName ?? "",
+      fullName:
+        `${user.profile?.firstName ?? ""} ${user.profile?.lastName ?? ""}`.trim() ||
+        user.email,
+      img: user.profile?.img ?? null,
     }));
 
-    res.json({
+    // ✅ Success response
+    res.status(200).json({
       success: true,
-      data: result,
       count: result.length,
+      data: result,
     });
-
   } catch (error) {
-    console.error('❌ Error in getEmployeesAndControleurs:', error);
+    console.error("❌ Error in getUsers:", error);
+
     res.status(500).json({
       success: false,
-      message: 'Erreur serveur',
-      ...(process.env.NODE_ENV === 'development' && { 
-        error: error instanceof Error ? error.message : 'Unknown error' 
-      })
+      message: "Erreur serveur",
+      ...(process.env.NODE_ENV === "development" && {
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
     });
   }
 };
@@ -143,8 +166,6 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     });
   }
 };
-
-
 
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;

@@ -156,6 +156,7 @@ import { $Enums, ImageType, Prisma } from "@prisma/client";
       const employe = await tx.user.findFirst({
         where: { role: "EMPLOYEE", disponibilite: true },
       });
+      
       if (!employe) throw new Error("Aucun employé disponible");
 
       const controleur = await tx.user.findFirst({

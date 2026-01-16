@@ -173,7 +173,6 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
   try {
     console.log(`🗑️ Tentative de suppression de l'utilisateur: ${id}`);
 
-    // ✅ Vérifier si l'utilisateur existe
     const existingUser = await prisma.user.findUnique({
       where: { id },
       include: {
@@ -189,7 +188,6 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
     });
 
     if (!existingUser) {
-      console.log(`❌ Utilisateur ${id} non trouvé`);
       res.status(404).json({
         success: false,
         message: 'Utilisateur non trouvé',
@@ -197,37 +195,44 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // ✅ Vérifier les dépendances avant suppression
-    const hasDependencies = 
+    const hasDependencies =
       existingUser._count.commandes > 0 ||
       existingUser._count.commandesAssignees > 0 ||
       existingUser._count.commandesControlees > 0 ||
       existingUser._count.controles > 0;
 
     if (hasDependencies) {
-      console.log(`⚠️ Utilisateur ${id} a des dépendances, suppression refusée`);
       res.status(409).json({
         success: false,
-        message: 'Impossible de supprimer cet utilisateur car il est associé à des commandes ou contrôles',
-        details: {
-          commandes: existingUser._count.commandes,
-          commandesAssignees: existingUser._count.commandesAssignees,
-          commandesControlees: existingUser._count.commandesControlees,
-          controles: existingUser._count.controles,
-        },
+        message:
+          'Impossible de supprimer cet utilisateur car il est associé à des commandes ou contrôles',
+        details: existingUser._count,
       });
       return;
     }
+
+    // ✅ SUPPRESSION RÉELLE (transaction)
+    await prisma.$transaction(async (tx) => {
+      // Supprimer le profil s’il existe
+      await tx.profile.deleteMany({
+        where: { userId: id },
+      });
+
+      // Supprimer l’utilisateur
+      await tx.user.delete({
+        where: { id },
+      });
+    });
+
+    console.log(`✅ Utilisateur ${id} supprimé`);
 
     res.json({
       success: true,
       message: 'Utilisateur supprimé avec succès',
     });
-
   } catch (error: any) {
     console.error('❌ Erreur suppression utilisateur:', error);
 
-    // ✅ Gestion des erreurs spécifiques Prisma
     if (error.code === 'P2025') {
       res.status(404).json({
         success: false,
@@ -238,11 +243,12 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
 
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de la suppression de l\'utilisateur',
+      message: 'Erreur lors de la suppression de l’utilisateur',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
+
 
 export const getUser = async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;

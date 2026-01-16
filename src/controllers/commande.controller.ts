@@ -942,24 +942,51 @@ export const deleteCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    // ✅ Simple suppression, les relations sont supprimées automatiquement
-    await prisma.commande.delete({
-      where: { id },
+    await prisma.$transaction(async (tx) => {
+      // 1️⃣ Récupérer la commande
+      const commande = await tx.commande.findUnique({
+        where: { id },
+        select: { clientId: true },
+      });
+
+      if (!commande) {
+        throw new Error("Commande introuvable");
+      }
+
+      const clientId = commande.clientId;
+
+      // 2️⃣ Supprimer la commande
+      await tx.commande.delete({
+        where: { id },
+      });
+
+      // 3️⃣ Vérifier s'il reste des commandes pour ce client
+      const remaining = await tx.commande.count({
+        where: { clientId },
+      });
+
+      // 4️⃣ Supprimer le client s’il n’a plus de commandes
+      if (remaining === 0) {
+        await tx.client.delete({
+          where: { id: clientId },
+        });
+      }
     });
 
     res.json({
       success: true,
-      message: "Commande supprimée avec succès"
+      message: "Commande (et client si dernier) supprimée avec succès",
     });
   } catch (error) {
-    console.error('Erreur suppression commande:', error);
-    
+    console.error("Erreur suppression commande:", error);
+
     res.status(500).json({
       success: false,
-      message: "Erreur lors de la suppression de la commande"
+      message: "Erreur lors de la suppression de la commande",
     });
   }
 };
+
 
 export const acceptCommande = async (req: Request, res: Response) => {
   const { id } = req.params;
